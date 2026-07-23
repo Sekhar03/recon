@@ -290,6 +290,7 @@ h1, h2, h3, h4 {
 
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .spinning { animation: spin 0.85s linear infinite; }
+.animate-spin { animation: spin 0.85s linear infinite; }
 
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.45; } }
 .icon-pulse { animation: pulse 2.2s ease-in-out infinite; }

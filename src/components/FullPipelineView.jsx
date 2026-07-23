@@ -17,7 +17,11 @@ import {
   Tag,
   Table,
   Search,
-  Filter
+  Filter,
+  Zap,
+  ArrowRightLeft,
+  Fingerprint,
+  CreditCard
 } from 'lucide-react';
 import axios from 'axios';
 import { exportMultiSheetExcel, exportGefuExcelWorkbook, exportGefuAccountingExcel } from '../utils/excelWorkbookExporter';
@@ -30,6 +34,13 @@ const PIPELINE_STEPS = [
   { id: 2, title: 'Upload NPCI Report', desc: 'Upload NPCI Settlement File' },
   { id: 3, title: 'Auto-Fetch Reports', desc: 'Middleware, Switch & Wallet' },
   { id: 4, title: 'Reconciliation Results', desc: 'Matched & Mismatched Reports' }
+];
+
+const PRODUCTS = [
+  { id: 'UPI', icon: Zap, emoji: '⚡', title: 'UPI', subtitle: 'Unified Payments Interface', color: '#119db0' },
+  { id: 'DMT', icon: ArrowRightLeft, emoji: '💸', title: 'DMT', subtitle: 'Direct Money Transfer', color: '#8b5cf6' },
+  { id: 'AEPS', icon: Fingerprint, emoji: '🖐️', title: 'AEPS', subtitle: 'Aadhaar Enabled Payment', color: '#f59e0b' },
+  { id: 'MATM', icon: CreditCard, emoji: '💳', title: 'MATM', subtitle: 'Micro ATM', color: '#ef4444' }
 ];
 
 const FullPipelineView = () => {
@@ -324,47 +335,103 @@ const FullPipelineView = () => {
         </p>
       </div>
 
-      {/* Sequential Steps Tracker */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '32px' }}>
-        {PIPELINE_STEPS.map((step) => {
+      {/* ─── Horizontal Line-Tick Stepper Bar ─── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', marginBottom: '36px', padding: '8px 0' }}>
+        {PIPELINE_STEPS.map((step, idx) => {
           const status = stepStatuses[step.id];
           const isCurrent = currentStep === step.id;
+          const isCompleted = status === 'Completed';
+          const isProcessing = status === 'Processing';
 
-          let badgeColor = '#94A3B8';
-          let badgeText = 'Pending';
-          if (status === 'Completed') {
-            badgeColor = 'var(--success)';
-            badgeText = '✓ Completed';
-          } else if (status === 'Processing') {
-            badgeColor = 'var(--primary)';
-            badgeText = 'Processing...';
-          } else if (isCurrent) {
-            badgeColor = 'var(--primary)';
-            badgeText = 'Active Step';
+          // Circle styling
+          let circleBg = '#e2e8f0';
+          let circleColor = '#94a3b8';
+          let circleBorder = '3px solid #e2e8f0';
+          let circleShadow = 'none';
+          if (isCompleted) {
+            circleBg = 'var(--success)';
+            circleColor = 'white';
+            circleBorder = '3px solid var(--success)';
+            circleShadow = '0 0 0 4px rgba(16,185,129,0.15)';
+          } else if (isCurrent || isProcessing) {
+            circleBg = 'var(--primary)';
+            circleColor = 'white';
+            circleBorder = '3px solid var(--primary)';
+            circleShadow = '0 0 0 4px rgba(17,157,176,0.15)';
           }
 
+          // Line color (line before this step)
+          const prevCompleted = idx > 0 && stepStatuses[PIPELINE_STEPS[idx - 1].id] === 'Completed';
+
           return (
-            <div 
-              key={step.id}
-              style={{
-                background: isCurrent ? 'rgba(37, 99, 235, 0.04)' : 'white',
-                border: `2px solid ${isCurrent ? 'var(--primary)' : 'var(--border)'}`,
-                borderRadius: '16px',
-                padding: '16px',
-                transition: 'all 0.2s ease'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                  Step {step.id}
+            <React.Fragment key={step.id}>
+              {/* Connecting Line (before each step except the first) */}
+              {idx > 0 && (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', paddingTop: '18px' }}>
+                  <div style={{
+                    height: '3px',
+                    width: '100%',
+                    borderRadius: '3px',
+                    background: prevCompleted
+                      ? 'linear-gradient(90deg, var(--success), var(--success))'
+                      : 'linear-gradient(90deg, #e2e8f0, #e2e8f0)',
+                    transition: 'background 0.4s ease'
+                  }} />
+                </div>
+              )}
+
+              {/* Step Circle + Label */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: '90px', position: 'relative' }}>
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '50%',
+                  background: circleBg,
+                  border: circleBorder,
+                  boxShadow: circleShadow,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: circleColor,
+                  fontSize: '14px',
+                  fontWeight: '800',
+                  transition: 'all 0.35s ease',
+                  position: 'relative',
+                  zIndex: 2
+                }}>
+                  {isCompleted ? (
+                    <Check size={18} strokeWidth={3} />
+                  ) : isProcessing ? (
+                    <RefreshCw size={16} className="animate-spin" />
+                  ) : (
+                    step.id
+                  )}
+                </div>
+
+                <span style={{
+                  marginTop: '10px',
+                  fontSize: '12px',
+                  fontWeight: isCompleted || isCurrent ? '700' : '600',
+                  color: isCompleted ? 'var(--success)' : isCurrent ? 'var(--primary)' : 'var(--text-secondary)',
+                  textAlign: 'center',
+                  lineHeight: '1.3',
+                  maxWidth: '110px',
+                  transition: 'color 0.3s ease'
+                }}>
+                  {step.title}
                 </span>
-                <span style={{ fontSize: '11px', fontWeight: '700', color: badgeColor }}>
-                  {badgeText}
+
+                <span style={{
+                  fontSize: '10.5px',
+                  color: 'var(--text-muted)',
+                  textAlign: 'center',
+                  maxWidth: '120px',
+                  marginTop: '2px'
+                }}>
+                  {step.desc}
                 </span>
               </div>
-              <h4 style={{ margin: '0 0 4px 0', fontSize: '14.5px', fontWeight: '700' }}>{step.title}</h4>
-              <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>{step.desc}</p>
-            </div>
+            </React.Fragment>
           );
         })}
       </div>
@@ -377,28 +444,105 @@ const FullPipelineView = () => {
           <div>
             <h3 style={{ margin: '0 0 8px 0', fontSize: '18px' }}>Step 1: Select Product & Reconciliation Cycle</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '24px' }}>
-              Choose your product (UPI, DMT, AEPS, MATM), business date, and target reconciliation cycle.
+              Choose your product, business date, and target reconciliation cycle.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '20px', maxWidth: '850px', marginBottom: '28px' }}>
+            {/* ─── Product Card Grid ─── */}
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '12px' }}>
+              Select Product
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '28px' }}>
+              {PRODUCTS.map((prod) => {
+                const isActive = selectedProduct === prod.id;
+                const IconComp = prod.icon;
+                return (
+                  <div
+                    key={prod.id}
+                    onClick={() => setSelectedProduct(prod.id)}
+                    style={{
+                      padding: '22px 16px',
+                      borderRadius: '16px',
+                      border: isActive ? `2.5px solid ${prod.color}` : '2px solid var(--border)',
+                      background: isActive ? `${prod.color}08` : 'white',
+                      cursor: 'pointer',
+                      transition: 'all 0.25s ease',
+                      textAlign: 'center',
+                      position: 'relative',
+                      boxShadow: isActive ? `0 0 0 4px ${prod.color}15, 0 4px 14px ${prod.color}12` : 'none',
+                      transform: isActive ? 'translateY(-2px)' : 'none'
+                    }}
+                  >
+                    {/* Active checkmark badge */}
+                    {isActive && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '-8px',
+                        right: '-8px',
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        background: prod.color,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: `0 2px 8px ${prod.color}40`
+                      }}>
+                        <Check size={13} color="white" strokeWidth={3} />
+                      </div>
+                    )}
+
+                    {/* Icon Circle */}
+                    <div style={{
+                      width: '52px',
+                      height: '52px',
+                      borderRadius: '50%',
+                      background: isActive ? `${prod.color}18` : 'var(--bg-hover)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 12px',
+                      transition: 'all 0.25s ease'
+                    }}>
+                      <IconComp size={24} color={isActive ? prod.color : '#94a3b8'} />
+                    </div>
+
+                    {/* Title */}
+                    <h4 style={{
+                      margin: '0 0 4px 0',
+                      fontSize: '16px',
+                      fontWeight: '800',
+                      color: isActive ? prod.color : 'var(--text-primary)',
+                      transition: 'color 0.2s'
+                    }}>
+                      {prod.emoji} {prod.id}
+                    </h4>
+
+                    {/* Subtitle */}
+                    <p style={{
+                      margin: 0,
+                      fontSize: '11.5px',
+                      color: isActive ? prod.color : 'var(--text-secondary)',
+                      fontWeight: '600',
+                      opacity: isActive ? 0.8 : 0.7,
+                      lineHeight: '1.3'
+                    }}>
+                      {prod.subtitle}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ─── Date & Cycle Row ─── */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', maxWidth: '850px', marginBottom: '28px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>Select Product:</label>
-                <select value={selectedProduct} onChange={e => setSelectedProduct(e.target.value)} className="settings-input" style={{ width: '100%', padding: '10px', fontWeight: '800', color: 'var(--primary)' }}>
-                  <option value="UPI">⚡ UPI Reconciliation</option>
-                  <option value="DMT">💸 DMT (Direct Money Transfer)</option>
-                  <option value="AEPS">🖐️ AEPS (Aadhaar Enabled Payment)</option>
-                  <option value="MATM">💳 MATM (Micro ATM)</option>
-                </select>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '8px' }}>Business Date</label>
+                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="settings-input" style={{ width: '100%', padding: '12px 14px' }} />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>Business Date:</label>
-                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="settings-input" style={{ width: '100%', padding: '10px' }} />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>Reconciliation Cycle:</label>
-                <select value={cycle} onChange={e => setCycle(e.target.value)} className="settings-input" style={{ width: '100%', padding: '10px', fontWeight: '700' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.6px', marginBottom: '8px' }}>Reconciliation Cycle</label>
+                <select value={cycle} onChange={e => setCycle(e.target.value)} className="settings-input" style={{ width: '100%', padding: '12px 14px', fontWeight: '600' }}>
                   <optgroup label="NPCI Sub-Cycles (1 to 10)">
                     <option value="NPCI_Cycle_1">NPCI Cycle 1 — Settlement Cycle 1 (Duration 21.00 to 00.00 | T+1 | GEFU 09.30 AM)</option>
                     <option value="NPCI_Cycle_2">NPCI Cycle 2 — Settlement Cycle 1 (Duration 00.00 to 05.00 | T Day | GEFU 09.30 AM)</option>
