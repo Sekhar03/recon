@@ -13,7 +13,9 @@ import {
   Clock,
   Tag,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Filter,
+  X
 } from 'lucide-react';
 import { getStoredJobs } from '../utils/jobHistoryStore';
 import { exportMultiSheetExcel } from '../utils/excelWorkbookExporter';
@@ -21,18 +23,22 @@ import { exportToExcel } from '../utils/excelExporter';
 
 const HistoryLog = () => {
   const [jobs, setJobs] = useState([]);
-  const [search, setSearch] = useState('');
+  const [filterDate, setFilterDate] = useState('');
+  const [filterCycle, setFilterCycle] = useState('');
   const [expandedJobId, setExpandedJobId] = useState(null);
 
   useEffect(() => {
     setJobs(getStoredJobs());
   }, []);
 
-  const filteredJobs = jobs.filter(j => 
-    j.jobId.toLowerCase().includes(search.toLowerCase()) || 
-    j.cycle.toLowerCase().includes(search.toLowerCase()) ||
-    j.date.toLowerCase().includes(search.toLowerCase())
-  );
+  // Get unique cycles from stored jobs for the dropdown
+  const uniqueCycles = [...new Set(jobs.map(j => j.cycle).filter(Boolean))];
+
+  const filteredJobs = jobs.filter(j => {
+    const matchDate = !filterDate || j.date === filterDate;
+    const matchCycle = !filterCycle || j.cycle === filterCycle;
+    return matchDate && matchCycle;
+  });
 
   // 6 Download Actions per Job
   const downloadMatchedReport = (job) => {
@@ -65,28 +71,77 @@ const HistoryLog = () => {
 
   return (
     <div className="glass-card animate-fade-in" style={{ padding: '36px' }}>
-      {/* Header & Search */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <h2 style={{ fontSize: '26px', margin: 0, fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <HistoryIcon color="var(--primary)" size={26} />
-            Job Archives & Reconciliation History
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14.5px' }}>
-            Inspect past reconciliation runs and re-download all 6 generated output files for any historical Job ID.
-          </p>
+      {/* Header */}
+      <div style={{ marginBottom: '24px' }}>
+        <h2 style={{ fontSize: '26px', margin: 0, fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <HistoryIcon color="var(--primary)" size={26} />
+          Job Archives & Reconciliation History
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14.5px' }}>
+          Inspect past reconciliation runs and re-download all 6 generated output files.
+        </p>
+      </div>
+
+      {/* Filter Bar: Date & Cycle */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'flex-end', 
+        gap: '16px', 
+        marginBottom: '28px', 
+        padding: '18px 22px', 
+        background: 'var(--bg-hover)', 
+        borderRadius: '14px', 
+        border: '1px solid var(--border)',
+        flexWrap: 'wrap'
+      }}>
+        <Filter size={18} color="var(--primary)" style={{ marginBottom: '10px' }} />
+
+        <div style={{ minWidth: '180px' }}>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+            <Calendar size={12} style={{ verticalAlign: 'text-bottom', marginRight: '4px' }} />
+            Filter by Date
+          </label>
+          <input 
+            type="date" 
+            value={filterDate} 
+            onChange={e => setFilterDate(e.target.value)} 
+            className="settings-input" 
+            style={{ padding: '9px 14px', borderRadius: '10px', fontSize: '13px', width: '100%' }} 
+          />
         </div>
 
-        <div style={{ position: 'relative', width: '280px' }}>
-          <Search size={16} color="var(--text-secondary)" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-          <input 
-            type="text" 
-            placeholder="Search by Job ID, Cycle, Date..." 
-            value={search} 
-            onChange={e => setSearch(e.target.value)} 
+        <div style={{ minWidth: '240px' }}>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+            <Clock size={12} style={{ verticalAlign: 'text-bottom', marginRight: '4px' }} />
+            Filter by Cycle
+          </label>
+          <select 
+            value={filterCycle} 
+            onChange={e => setFilterCycle(e.target.value)} 
             className="settings-input" 
-            style={{ width: '100%', paddingLeft: '38px', borderRadius: '12px' }} 
-          />
+            style={{ padding: '9px 14px', borderRadius: '10px', fontSize: '13px', width: '100%', fontWeight: '600' }}
+          >
+            <option value="">All Cycles</option>
+            {uniqueCycles.map(c => (
+              <option key={c} value={c}>{c.replace(/_/g, ' ')}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Clear Filters */}
+        {(filterDate || filterCycle) && (
+          <button 
+            onClick={() => { setFilterDate(''); setFilterCycle(''); }} 
+            className="btn btn-outline" 
+            style={{ padding: '9px 16px', fontSize: '12.5px', borderRadius: '10px', fontWeight: '700', marginBottom: '0' }}
+          >
+            <X size={14} /> Clear Filters
+          </button>
+        )}
+
+        {/* Results count */}
+        <div style={{ marginLeft: 'auto', fontSize: '13px', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '10px' }}>
+          {filteredJobs.length} of {jobs.length} jobs
         </div>
       </div>
 
@@ -94,7 +149,7 @@ const HistoryLog = () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {filteredJobs.length === 0 ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)', background: 'var(--bg-hover)', borderRadius: '16px' }}>
-            No reconciliation jobs found matching "{search}".
+            No reconciliation jobs found matching your filters.
           </div>
         ) : (
           filteredJobs.map((job) => {
