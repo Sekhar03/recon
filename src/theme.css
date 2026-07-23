@@ -1,26 +1,40 @@
 :root {
-  /* iServeU Colors */
-  --primary: #119db0;        /* Core Teal */
+  /* iServeU Brand Colors */
+  --primary: #119db0;
   --primary-dark: #0e8696;
-  --secondary: #1b2a3e;     /* Deep Navy */
-  --bg-main: #f8fafc;       /* Light neutral background */
+  --primary-light: #23c5da;
+  --secondary: #1b2a3e;
+  --secondary-light: #253650;
+  --bg-main: #f0f4f8;
   --bg-card: #ffffff;
   --bg-hover: #f1f5f9;
-  
-  --text-primary: #1b2a3e;  /* Navy for primary text */
-  --text-secondary: #475569; /* Darker Slate for improved contrast */
-  --border: #e2e8f0;
-  
-  --success: #10b981;
-  --danger: #ef4444;
-  --warning: #f59e0b;
+  --bg-sidebar: #1b2a3e;
 
-  --primary-glow: rgba(17, 157, 176, 0.1);
-  --glass-bg: rgba(255, 255, 255, 0.8);
-  --glass-border: rgba(17, 157, 176, 0.1);
+  /* Text */
+  --text-primary: #1b2a3e;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+
+  /* Borders */
+  --border: #e2e8f0;
+  --border-focus: #119db0;
+
+  /* Status */
+  --success: #10b981;
+  --success-glow: rgba(16, 185, 129, 0.12);
+  --danger: #ef4444;
+  --danger-glow: rgba(239, 68, 68, 0.12);
+  --warning: #f59e0b;
+  --warning-glow: rgba(245, 158, 11, 0.12);
+  --info: #3b82f6;
+  --info-glow: rgba(59, 130, 246, 0.12);
+
+  /* Glow */
+  --primary-glow: rgba(17, 157, 176, 0.10);
 
   /* Elevation */
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 10px 28px rgba(0,0,0,0.10);
+  --shadow-xl: 0 20px 48px rgba(0,0,0,0.14);
 }

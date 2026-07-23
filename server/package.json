@@ -1,14 +1,15 @@
 {
   "name": "server",
   "version": "1.0.0",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node testPipeline.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "UPI Reconciliation & Settlement Engine",
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1",
