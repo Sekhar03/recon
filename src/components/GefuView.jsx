@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, CheckCircle2, Database, Tag, Calendar, Clock, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+import { FileText, Download, Tag, Calendar, Clock, ChevronDown, ChevronUp, Copy, Check, Table, FileSpreadsheet, ShieldCheck } from 'lucide-react';
 import { getStoredJobs } from '../utils/jobHistoryStore';
 import { exportToExcel } from '../utils/excelExporter';
 
 const GefuView = ({ viewMode = 'flat' }) => {
   const [jobs, setJobs] = useState([]);
   const [expandedJobId, setExpandedJobId] = useState(null);
+  const [activeSheetTab, setActiveSheetTab] = useState('Input'); // 'Input' | 'Output' | 'Field_Formats'
   const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
@@ -17,7 +18,7 @@ const GefuView = ({ viewMode = 'flat' }) => {
   }, []);
 
   const handleDownloadFlatFile = (job) => {
-    const content = job.gefuFlatFileContent || 'HDR20260723NSDL0000001\nDTL501001234DR00000002500000PAYMENT\nFTR00000100000002500000';
+    const content = job.gefuFlatFileContent || '120260723\n203  40421004588880100820250630D2025063000001000000000446600000000004466000000100000000000000000000000000Switching Fees_7C_300625\n3000000009000001079036217000000014000001079036217';
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -41,19 +42,86 @@ const GefuView = ({ viewMode = 'flat' }) => {
 
   const isFlatMode = viewMode === 'flat';
 
+  const sampleInputRows = [
+    { txnDate: '30-06-2025', drCr: 'D', valueDate: '30-06-2025', ccy: '1', amtLcy: '2,66,618.30', amtTcy: '2,66,618.30', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'UPI_NPT_FinalSettledAmt_7C_300625' },
+    { txnDate: '30-06-2025', drCr: 'C', valueDate: '30-06-2025', ccy: '1', amtLcy: '2,66,618.30', amtTcy: '2,66,618.30', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'UPI_NPT_FinalSettledAmt_7C_300625' },
+    { txnDate: '30-06-2025', drCr: 'D', valueDate: '30-06-2025', ccy: '1', amtLcy: '44.66', amtTcy: '44.66', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'Switching Fees_7C_300625' },
+    { txnDate: '30-06-2025', drCr: 'D', valueDate: '30-06-2025', ccy: '1', amtLcy: '8.04', amtTcy: '8.04', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'GST on Switching Fees_7C_300625' },
+    { txnDate: '30-06-2025', drCr: 'C', valueDate: '30-06-2025', ccy: '1', amtLcy: '453.34', amtTcy: '453.34', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'UPI Acquiring - IserveU_7C_300625' },
+    { txnDate: '30-06-2025', drCr: 'C', valueDate: '30-06-2025', ccy: '1', amtLcy: '81.60', amtTcy: '81.60', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'UPI Acquiring GST on Fees_7C_300625' },
+    { txnDate: '30-06-2025', drCr: 'C', valueDate: '30-06-2025', ccy: '1', amtLcy: '2,624.68', amtTcy: '2,624.68', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'UPI Acquiring-iServeU_7C_300625' },
+    { txnDate: '30-06-2025', drCr: 'C', valueDate: '30-06-2025', ccy: '1', amtLcy: '2,63,458.68', amtTcy: '2,63,458.68', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'UPI_NPT_FinalSettledAmt_7C_300625' },
+    { txnDate: '30-06-2025', drCr: 'D', valueDate: '30-06-2025', ccy: '1', amtLcy: '51,27,651.78', amtTcy: '51,27,651.78', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'UPI_NPT_FinalSettledAmt_8C_300625' },
+    { txnDate: '30-06-2025', drCr: 'C', valueDate: '30-06-2025', ccy: '1', amtLcy: '51,27,651.78', amtTcy: '51,27,651.78', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'UPI_NPT_FinalSettledAmt_8C_300625' },
+    { txnDate: '30-06-2025', drCr: 'D', valueDate: '30-06-2025', ccy: '1', amtLcy: '990.93', amtTcy: '990.93', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'Switching Fees_8C_300625' },
+    { txnDate: '30-06-2025', drCr: 'D', valueDate: '30-06-2025', ccy: '1', amtLcy: '178.38', amtTcy: '178.38', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'GST on Switching Fees_8C_300625' },
+    { txnDate: '30-06-2025', drCr: 'C', valueDate: '30-06-2025', ccy: '1', amtLcy: '8,699.61', amtTcy: '8,699.61', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'UPI Acquiring - IserveU_8C_300625' },
+    { txnDate: '30-06-2025', drCr: 'C', valueDate: '30-06-2025', ccy: '1', amtLcy: '1,565.94', amtTcy: '1,565.94', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'UPI Acquiring GST on Fees_8C_300625' },
+    { txnDate: '30-06-2025', drCr: 'C', valueDate: '30-06-2025', ccy: '1', amtLcy: '25,917.31', amtTcy: '25,917.31', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'UPI Acquiring-iServeU_8C_300625' },
+    { txnDate: '30-06-2025', drCr: 'D', valueDate: '30-06-2025', ccy: '1', amtLcy: '600.00', amtTcy: '600.00', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'Net Adjusted Amount' },
+    { txnDate: '30-06-2025', drCr: 'C', valueDate: '30-06-2025', ccy: '1', amtLcy: '50,92,068.92', amtTcy: '50,92,068.92', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'UPI_NPT_FinalSettledAmt_8C_300625' }
+  ];
+
+  const fieldFormatsRules = [
+    { field: 'Txn Type', casa: '1', gl: '3', rule: 'Must be 1 for CASA and 3 for GL', mandatory: 'Y' },
+    { field: 'Account Number', casa: '501000000794', gl: '208100011', rule: 'Number only', mandatory: 'Y' },
+    { field: 'Branch Code', casa: '8888', gl: '8888', rule: 'Number only', mandatory: 'Y' },
+    { field: 'Txn Code', casa: '1008', gl: '1408', rule: 'Number only', mandatory: 'Y' },
+    { field: 'Txn Date', casa: '22/08/2019', gl: '22/08/2019', rule: 'Date format must be DD/MM/YYYY', mandatory: 'Y' },
+    { field: 'Dr / Cr', casa: 'D', gl: 'C', rule: 'Char', mandatory: 'Y' },
+    { field: 'Value Date', casa: '22/08/2019', gl: '22/08/2019', rule: 'Date format must be DD/MM/YYYY', mandatory: 'Y' },
+    { field: 'Txn CCY', casa: '1', gl: '1', rule: 'Number only', mandatory: 'Y' },
+    { field: 'Amt LCY', casa: '1.00', gl: '1.00', rule: 'Number only', mandatory: 'Y' },
+    { field: 'Amt TCY', casa: '1.00', gl: '1.00', rule: 'Number only', mandatory: 'Y' },
+    { field: 'Rate Con', casa: '1.00', gl: '1.00', rule: 'Number only', mandatory: 'Y' },
+    { field: 'Ref No', casa: '0', gl: '0', rule: 'Number only', mandatory: 'Y' },
+    { field: 'Ref Doc No', casa: '0', gl: '0', rule: 'Number only', mandatory: 'Y' },
+    { field: 'Transaction Description', casa: 'BBPS-JME20190815...', gl: 'BBPS-JME20190815...', rule: 'Varchar', mandatory: 'Y' },
+    { field: 'Option', casa: '30', gl: '30', rule: 'Number only', mandatory: 'Y' },
+    { field: 'Issuer Code', casa: '00000', gl: '00000', rule: 'Number only', mandatory: 'Y' },
+    { field: 'Payable Branch', casa: '0000', gl: '0000', rule: 'Number only', mandatory: 'Y' },
+    { field: 'Flag Future dated', casa: 'N', gl: 'N', rule: 'Char', mandatory: 'Y' },
+    { field: 'Mis Code', casa: '0000000000000000', gl: '0000000000000000', rule: 'Number only', mandatory: 'Y' }
+  ];
+
   return (
     <div className="glass-card animate-fade-in" style={{ padding: '36px' }}>
       {/* Header */}
       <div style={{ marginBottom: '28px' }}>
         <h2 style={{ fontSize: '26px', margin: 0, fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <FileText color="var(--primary)" size={26} />
-          {isFlatMode ? 'GEFU File (Positional Bank Flat Files)' : 'GEFU Accounting File (Internal Audit Ledger)'}
+          {isFlatMode ? 'GEFU File (FLEXCUBE Core Banking Flat File Generator)' : 'GEFU Accounting File (Internal Audit Ledger)'}
         </h2>
         <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14.5px' }}>
           {isFlatMode 
-            ? 'Positional 27-field fixed-width bank flat files generated per reconciliation job with Header (1), Detail (2), and Footer (3) control totals.'
+            ? 'FLEXCUBE Core Banking 4-Sheet Staging Engine: Input (Data Entry) → Formatter_Working → Output (559-char concatenated fixed-width string) → Field_Formats rulebook.'
             : 'Human-readable internal accounting ledger entries generated per reconciliation job.'}
         </p>
+      </div>
+
+      {/* Sheet Tabs Bar */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+        <button 
+          onClick={() => setActiveSheetTab('Input')} 
+          className={`btn ${activeSheetTab === 'Input' ? 'btn-primary' : 'btn-outline'}`}
+          style={{ fontSize: '13px', padding: '8px 16px' }}
+        >
+          <Table size={15} /> Sheet 1: Input (Transactions)
+        </button>
+        <button 
+          onClick={() => setActiveSheetTab('Output')} 
+          className={`btn ${activeSheetTab === 'Output' ? 'btn-primary' : 'btn-outline'}`}
+          style={{ fontSize: '13px', padding: '8px 16px' }}
+        >
+          <FileText size={15} /> Sheet 2: Output (Fixed-Width Messages)
+        </button>
+        <button 
+          onClick={() => setActiveSheetTab('Field_Formats')} 
+          className={`btn ${activeSheetTab === 'Field_Formats' ? 'btn-primary' : 'btn-outline'}`}
+          style={{ fontSize: '13px', padding: '8px 16px' }}
+        >
+          <ShieldCheck size={15} /> Sheet 3: Field_Formats (Rulebook)
+        </button>
       </div>
 
       {/* Detailed Tabular Jobs List */}
@@ -111,46 +179,94 @@ const GefuView = ({ viewMode = 'flat' }) => {
                 {/* Expanded Detailed Tabular File View */}
                 {isExpanded && (
                   <div style={{ padding: '24px', borderTop: '1px solid var(--border)', background: '#F8FAFC' }}>
-                    {isFlatMode ? (
+                    {activeSheetTab === 'Input' && (
+                      <div>
+                        <span style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--primary)', display: 'block', marginBottom: '12px' }}>
+                          Sheet 1: Input Data Entry Table for {job.jobId}
+                        </span>
+                        <div style={{ overflowX: 'auto' }}>
+                          <table className="data-table" style={{ fontSize: '12px' }}>
+                            <thead>
+                              <tr>
+                                <th>Txn Date</th>
+                                <th>Dr / Cr</th>
+                                <th>Value Date</th>
+                                <th>Txn CCY</th>
+                                <th>Amt LCY</th>
+                                <th>Amt TCY</th>
+                                <th>Rate Con</th>
+                                <th>Ref No</th>
+                                <th>Ref Doc No</th>
+                                <th>Transaction Description</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sampleInputRows.map((row, idx) => (
+                                <tr key={idx}>
+                                  <td>{row.txnDate}</td>
+                                  <td><span className={`badge ${row.drCr === 'D' ? 'badge-warning' : 'badge-success'}`}>{row.drCr}</span></td>
+                                  <td>{row.valueDate}</td>
+                                  <td>{row.ccy}</td>
+                                  <td style={{ fontWeight: '700' }}>₹{row.amtLcy}</td>
+                                  <td style={{ fontWeight: '700' }}>₹{row.amtTcy}</td>
+                                  <td>{row.rate}</td>
+                                  <td>{row.refNo}</td>
+                                  <td>{row.refDocNo}</td>
+                                  <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{row.desc}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {activeSheetTab === 'Output' && (
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                          <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase' }}>
-                            Positional 27-Field Text File Contents for {job.jobId}
+                          <span style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--primary)' }}>
+                            Sheet 2: Output Fixed-Width Concatenated Messages for {job.jobId}
                           </span>
                           <button onClick={() => handleCopyContent(job)} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '12px' }}>
                             {copiedId === job.jobId ? <Check size={14} color="var(--success)" /> : <Copy size={14} />}
-                            {copiedId === job.jobId ? 'Copied!' : 'Copy Raw Text'}
+                            {copiedId === job.jobId ? 'Copied!' : 'Copy Raw Output'}
                           </button>
                         </div>
-                        <pre style={{ background: '#0F172A', color: '#38BDF8', padding: '18px', borderRadius: '12px', fontSize: '12px', fontFamily: 'monospace', overflowX: 'auto', margin: 0, whiteSpace: 'pre-wrap' }}>
-                          {job.gefuFlatFileContent || '120260723\n201990812345678901200120140820260723CR202607230001243031400001243031400000010020260723001  20260723001  UPI Net Settlement Credit to Pool    BENEF001        NSDL PAYMENTS BANK                                                                                                                      ~~END~~\n3000003000124674460000002000124674460'}
+                        <pre style={{ background: '#0F172A', color: '#38BDF8', padding: '18px', borderRadius: '12px', fontSize: '11.5px', fontFamily: 'monospace', overflowX: 'auto', margin: 0, whiteSpace: 'pre-wrap' }}>
+                          {job.gefuFlatFileContent || '120260723\n559 203 40421004588880100820250630D2025063000001000000000446600000000004466000000100000000000000000000000000Switching Fees_7C_300625\n559 203 11418000188880140820250630C2025063000001000000000080400000000000804000000100000000000000000000000000GST on Switching Fees_7C_300625\n3000000009000001079036217000000014000001079036217'}
                         </pre>
                       </div>
-                    ) : (
+                    )}
+
+                    {activeSheetTab === 'Field_Formats' && (
                       <div>
-                        <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', display: 'block', marginBottom: '12px' }}>
-                          Internal Audit Ledger Entries for {job.jobId}
+                        <span style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--primary)', display: 'block', marginBottom: '12px' }}>
+                          Sheet 3: Field_Formats Validation Rulebook
                         </span>
-                        <table className="data-table">
-                          <thead>
-                            <tr>
-                              <th>Account Number</th>
-                              <th>Account Name / Remarks</th>
-                              <th>Dr / Cr</th>
-                              <th>Amount</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(job.gefuAccountingLedger || []).map((row, idx) => (
-                              <tr key={idx}>
-                                <td style={{ fontWeight: '700', fontFamily: 'monospace' }}>{row['Account Number'] || row.accountNumber}</td>
-                                <td>{row['Narration'] || row.accountName || row.remarks}</td>
-                                <td><span className={`badge ${row['Dr/Cr'] === 'DR' ? 'badge-warning' : 'badge-success'}`}>{row['Dr/Cr'] || row.drCr}</span></td>
-                                <td style={{ fontWeight: '700' }}>₹{parseFloat(row.Amount || row.amount || 0).toFixed(2)}</td>
+                        <div style={{ overflowX: 'auto' }}>
+                          <table className="data-table" style={{ fontSize: '12px' }}>
+                            <thead>
+                              <tr>
+                                <th>Fields</th>
+                                <th>Sample CASA Value</th>
+                                <th>Sample GL Value</th>
+                                <th>Validations Rule</th>
+                                <th>Mandatory</th>
                               </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody>
+                              {fieldFormatsRules.map((row, idx) => (
+                                <tr key={idx}>
+                                  <td style={{ fontWeight: '700' }}>{row.field}</td>
+                                  <td style={{ fontFamily: 'monospace' }}>{row.casa}</td>
+                                  <td style={{ fontFamily: 'monospace' }}>{row.gl}</td>
+                                  <td>{row.rule}</td>
+                                  <td><span className="badge badge-success">{row.mandatory}</span></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
                     )}
                   </div>
