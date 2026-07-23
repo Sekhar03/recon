@@ -1,90 +1,46 @@
 import React, { useState } from 'react';
 import { 
-  LayoutDashboard, 
-  RefreshCcw, 
-  DollarSign,
-  FileCheck,
+  Zap, 
+  FileText, 
+  FileSpreadsheet, 
+  DollarSign, 
+  CreditCard, 
   User, 
   LogOut, 
   X,
-  Layers,
-  Clock,
-  FileText,
-  ShieldAlert,
-  History,
-  PieChart,
-  Settings,
   Play
 } from 'lucide-react';
-import Dashboard from './components/Dashboard';
-import CycleManager from './components/CycleManager';
 import FullPipelineView from './components/FullPipelineView';
-import ModuleAView from './components/ModuleAView';
-import ModuleBView from './components/ModuleBView';
-import ModuleCView from './components/ModuleCView';
 import GefuView from './components/GefuView';
 import SettlementPayoutView from './components/SettlementPayoutView';
-import ExceptionReviewer from './components/ExceptionReviewer';
-import HistoryLog from './components/History';
-import Visualizations from './components/Visualizations';
-import SettingsView from './components/Settings';
-import Wizard from './components/Wizard';
 import Login from './components/Login';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('full-pipeline');
+  const [activeTab, setActiveTab] = useState('pipeline');
   const [user, setUser] = useState({ name: 'Finance Admin', role: 'Reconciliation Lead' });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [selectedJob, setSelectedJob] = useState(null);
 
   const logout = () => {
     setUser(null);
-    setActiveTab('full-pipeline');
+    setActiveTab('pipeline');
   };
 
   if (!user) {
     return <Login onLogin={(usr) => setUser(usr)} />;
   }
 
-  const handleViewJob = (job) => {
-    setSelectedJob(job);
-    setActiveTab('gefu-settlement');
-  };
-
   const renderContent = () => {
     switch (activeTab) {
-      case 'full-pipeline':
+      case 'pipeline':
         return <FullPipelineView />;
-      case 'module-a':
-        return <ModuleAView />;
-      case 'module-b':
-        return <ModuleBView />;
-      case 'module-c':
-        return <ModuleCView />;
-      case 'gefu-settlement':
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-            <GefuView jobId={selectedJob?.jobId} />
-            <SettlementPayoutView jobId={selectedJob?.jobId} />
-          </div>
-        );
-      case 'wizard':
-        return (
-          <Wizard 
-            onComplete={(job) => {
-              setSelectedJob(job);
-              setActiveTab('gefu-settlement');
-            }} 
-          />
-        );
-      case 'exceptions':
-        return <ExceptionReviewer />;
-      case 'history':
-        return <HistoryLog onViewJob={handleViewJob} />;
-      case 'visuals':
-        return <Visualizations />;
-      case 'settings':
-        return <SettingsView />;
+      case 'gefu-file':
+        return <GefuView viewMode="flat" />;
+      case 'gefu-accounting':
+        return <GefuView viewMode="accounting" />;
+      case 'settlement-file':
+        return <SettlementPayoutView viewMode="settlement" />;
+      case 'payout-file':
+        return <SettlementPayoutView viewMode="payout" />;
       default:
         return <FullPipelineView />;
     }
@@ -93,12 +49,12 @@ function App() {
   return (
     <div className="app-container">
       {/* Sidebar Navigation */}
-      <aside className={`sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`} style={{ width: '270px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <aside className={`sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`} style={{ width: '260px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px' }}>
           <div className="brand" style={{ padding: '0 8px' }}>
             <img src="https://iserveu.in/wp-content/uploads/2024/01/ISERVEU-MAIN-LOGO.png" alt="iServeU" style={{ height: '30px', filter: 'brightness(0) invert(1)' }} />
             <p style={{ fontSize: '9.5px', color: 'rgba(255,255,255,0.6)', fontWeight: '600', textTransform: 'uppercase', marginTop: '6px', letterSpacing: '1px' }}>
-              Reconciliation & Settlement Platform
+              UPI Recon & Settlement
             </p>
           </div>
           <button className="mobile-only" onClick={() => setMobileMenuOpen(false)} style={{ background: 'none', border: 'none', color: 'white' }}>
@@ -108,69 +64,40 @@ function App() {
 
         <nav style={{ flex: 1, overflowY: 'auto' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            {/* Reconciliation Tools */}
+            {/* Main Execution Pipeline */}
             <div>
               <p style={{ fontSize: '10px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', fontWeight: '700', letterSpacing: '1px', margin: '0 0 8px 12px' }}>
-                Reconciliation Hub
+                Pipeline Execution
               </p>
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <li className={`nav-item ${activeTab === 'full-pipeline' ? 'active' : ''}`} onClick={() => { setActiveTab('full-pipeline'); setMobileMenuOpen(false); }}>
-                  <Layers size={17} />
-                  <span>6-In / 6-Out Pipeline</span>
-                </li>
-                <li className={`nav-item ${activeTab === 'module-a' ? 'active' : ''}`} onClick={() => { setActiveTab('module-a'); setMobileMenuOpen(false); }}>
-                  <RefreshCcw size={17} />
-                  <span>Module A — Txn Recon</span>
-                </li>
-                <li className={`nav-item ${activeTab === 'module-b' ? 'active' : ''}`} onClick={() => { setActiveTab('module-b'); setMobileMenuOpen(false); }}>
-                  <DollarSign size={17} />
-                  <span>Module B — Comm Recon</span>
-                </li>
-                <li className={`nav-item ${activeTab === 'module-c' ? 'active' : ''}`} onClick={() => { setActiveTab('module-c'); setMobileMenuOpen(false); }}>
-                  <FileCheck size={17} />
-                  <span>Module C — Payout Recon</span>
+                <li className={`nav-item ${activeTab === 'pipeline' ? 'active' : ''}`} onClick={() => { setActiveTab('pipeline'); setMobileMenuOpen(false); }}>
+                  <Zap size={17} />
+                  <span>UPI Reconciliation Pipeline</span>
                 </li>
               </ul>
             </div>
 
-            {/* Group 3: Bank & Settlement Engines */}
+            {/* Output Modules */}
             <div>
               <p style={{ fontSize: '10px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', fontWeight: '700', letterSpacing: '1px', margin: '0 0 8px 12px' }}>
-                Settlement & Bank Engines
+                Output Files
               </p>
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <li className={`nav-item ${activeTab === 'gefu-settlement' ? 'active' : ''}`} onClick={() => { setActiveTab('gefu-settlement'); setMobileMenuOpen(false); }}>
+                <li className={`nav-item ${activeTab === 'gefu-file' ? 'active' : ''}`} onClick={() => { setActiveTab('gefu-file'); setMobileMenuOpen(false); }}>
                   <FileText size={17} />
-                  <span>GEFU & Merchant Settlement</span>
+                  <span>GEFU File</span>
                 </li>
-                <li className={`nav-item ${activeTab === 'wizard' ? 'active' : ''}`} onClick={() => { setActiveTab('wizard'); setMobileMenuOpen(false); }}>
-                  <Play size={17} />
-                  <span>Pipeline Execution Wizard</span>
+                <li className={`nav-item ${activeTab === 'gefu-accounting' ? 'active' : ''}`} onClick={() => { setActiveTab('gefu-accounting'); setMobileMenuOpen(false); }}>
+                  <FileSpreadsheet size={17} />
+                  <span>GEFU Accounting File</span>
                 </li>
-              </ul>
-            </div>
-
-            {/* Group 4: Audit & Review */}
-            <div>
-              <p style={{ fontSize: '10px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', fontWeight: '700', letterSpacing: '1px', margin: '0 0 8px 12px' }}>
-                Audit & Review
-              </p>
-              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <li className={`nav-item ${activeTab === 'exceptions' ? 'active' : ''}`} onClick={() => { setActiveTab('exceptions'); setMobileMenuOpen(false); }}>
-                  <ShieldAlert size={17} />
-                  <span>Exception Reviewer Console</span>
+                <li className={`nav-item ${activeTab === 'settlement-file' ? 'active' : ''}`} onClick={() => { setActiveTab('settlement-file'); setMobileMenuOpen(false); }}>
+                  <DollarSign size={17} />
+                  <span>Settlement File</span>
                 </li>
-                <li className={`nav-item ${activeTab === 'history' ? 'active' : ''}`} onClick={() => { setActiveTab('history'); setMobileMenuOpen(false); }}>
-                  <History size={17} />
-                  <span>Job Archives</span>
-                </li>
-                <li className={`nav-item ${activeTab === 'visuals' ? 'active' : ''}`} onClick={() => { setActiveTab('visuals'); setMobileMenuOpen(false); }}>
-                  <PieChart size={17} />
-                  <span>Analytics</span>
-                </li>
-                <li className={`nav-item ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => { setActiveTab('settings'); setMobileMenuOpen(false); }}>
-                  <Settings size={17} />
-                  <span>Rules & System Settings</span>
+                <li className={`nav-item ${activeTab === 'payout-file' ? 'active' : ''}`} onClick={() => { setActiveTab('payout-file'); setMobileMenuOpen(false); }}>
+                  <CreditCard size={17} />
+                  <span>Payout File</span>
                 </li>
               </ul>
             </div>
@@ -199,21 +126,16 @@ function App() {
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px', flexWrap: 'wrap', gap: '20px' }}>
           <div>
             <h1 style={{ fontSize: '24px', marginBottom: '4px' }}>
-              {activeTab === 'dashboard' && 'UPI Reconciliation & Settlement Console'}
-              {activeTab === 'cycles' && 'NPCI Sub-Cycle Scheduler & Cut-off Management'}
-              {activeTab === 'full-pipeline' && '6-Input File → 6-Output File Reconciliation & Settlement Pipeline'}
-              {activeTab === 'module-a' && 'Module A — 4-Way Transaction Reconciliation'}
-              {activeTab === 'module-b' && 'Module B — Commission Reconciliation'}
-              {activeTab === 'module-c' && 'Module C — 3-Way Payout Reconciliation'}
-              {activeTab === 'gefu-settlement' && 'NTSL → GEFU Generator & Merchant Settlement Engine'}
-              {activeTab === 'wizard' && 'Pipeline Execution Wizard'}
-              {activeTab === 'exceptions' && 'Reviewer Exception Console & Audit Trail'}
-              {activeTab === 'history' && 'Reconciliation Job Archives'}
-              {activeTab === 'visuals' && 'System Performance Analytics'}
-              {activeTab === 'settings' && 'Rules Matrix & System Settings'}
+              {activeTab === 'pipeline' && 'UPI Reconciliation Pipeline Execution'}
+              {activeTab === 'gefu-file' && 'GEFU File (Positional Bank Flat File)'}
+              {activeTab === 'gefu-accounting' && 'GEFU Accounting File (Internal Ledger)'}
+              {activeTab === 'settlement-file' && 'Merchant Settlement File'}
+              {activeTab === 'payout-file' && 'IMPS Payout File (₹500,000 Split)'}
             </h1>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              Comprehensive UPI transaction reconciliation, settlement generation, and reporting platform.
+              {activeTab === 'pipeline' 
+                ? 'Executing 4-Way Matching → GEFU Flat File → Settlement Gate → IMPS Payout Split.'
+                : 'Inspect and download output files generated by the reconciliation pipeline.'}
             </p>
           </div>
         </header>
@@ -228,13 +150,13 @@ function App() {
           display: flex;
           align-items: center;
           gap: 10px;
-          padding: 8.5px 12px;
-          border-radius: 9px;
+          padding: 10px 14px;
+          border-radius: 10px;
           color: rgba(255,255,255,0.7);
           cursor: pointer;
           transition: 0.2s;
           font-weight: 500;
-          font-size: 13px;
+          font-size: 13.5px;
         }
         .nav-item:hover { color: white; background: rgba(255,255,255,0.08); }
         .nav-item.active { color: white; background: var(--primary); font-weight: 700; }

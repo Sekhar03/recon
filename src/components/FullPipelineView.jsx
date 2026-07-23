@@ -145,24 +145,49 @@ const FullPipelineView = () => {
         </div>
       )}
 
-      {/* Main Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <h2 style={{ fontSize: '26px', margin: 0, fontWeight: '800', letterSpacing: '-0.5px' }}>
-            UPI Reconciliation & Output Downloads
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '6px', fontSize: '14.5px' }}>
-            Run cycle reconciliation to generate the <b>2 Reconciliation Reports</b> and <b>4 Settlement & Bank Output Files</b>.
-          </p>
+      {/* Main Header & Pipeline Stepper Bar */}
+      <div style={{ marginBottom: '32px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <h2 style={{ fontSize: '26px', margin: 0, fontWeight: '800', letterSpacing: '-0.5px' }}>
+              UPI Reconciliation & Settlement Pipeline
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '6px', fontSize: '14.5px' }}>
+              Ingest cycle reports and execute the automated 4-way matching and bank settlement pipeline.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-hover)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+            <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Settlement Cycle:</span>
+            <select value={cycle} onChange={e => setCycle(e.target.value)} className="settings-input" style={{ width: '150px', padding: '6px 10px', fontWeight: '700' }}>
+              <option value="Cycle_1">Cycle 1 (09:30 AM)</option>
+              <option value="Cycle_2">Cycle 2 (03:30 PM)</option>
+              <option value="Cycle_3">Cycle 3 (09:30 PM)</option>
+            </select>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-hover)', padding: '8px 16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-          <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-secondary)' }}>Settlement Cycle:</span>
-          <select value={cycle} onChange={e => setCycle(e.target.value)} className="settings-input" style={{ width: '150px', padding: '6px 10px', fontWeight: '700' }}>
-            <option value="Cycle_1">Cycle 1 (09:30 AM)</option>
-            <option value="Cycle_2">Cycle 2 (03:30 PM)</option>
-            <option value="Cycle_3">Cycle 3 (09:30 PM)</option>
-          </select>
+        {/* Visual Pipeline Stepper Bar */}
+        <div style={{ background: 'linear-gradient(130deg, #0f172a 0%, #1e293b 100%)', borderRadius: '16px', padding: '18px 24px', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+          {[
+            { step: '1', name: '4-Way Matching', desc: 'NPCI × Switch × MW × Wallet' },
+            { step: '2', name: 'GEFU Flat File', desc: 'NSDL 27-Field Bank Layout' },
+            { step: '3', name: 'Settlement Gate', desc: '0.2006% Bank Share Calc' },
+            { step: '4', name: 'IMPS Payout Split', desc: 'Chunking Amounts > ₹5L' }
+          ].map((st, i) => (
+            <React.Fragment key={st.step}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: result ? 'var(--success)' : 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '12px' }}>
+                  {result ? <Check size={14} /> : st.step}
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontWeight: '700', fontSize: '13px', color: 'white' }}>{st.name}</p>
+                  <p style={{ margin: 0, fontSize: '11px', color: 'rgba(255,255,255,0.6)' }}>{st.desc}</p>
+                </div>
+              </div>
+              {i < 3 && <ArrowRight size={16} color="rgba(255,255,255,0.4)" />}
+            </React.Fragment>
+          ))}
         </div>
       </div>
 
