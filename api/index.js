@@ -146,8 +146,8 @@ app.post('/api/v1/module-c/run', (req, res) => {
     }
   }
 
-// Unified Full Pipeline Endpoint: 6 Inputs -> 6 Outputs
-app.post('/api/v1/full-pipeline/run', (req, res) => {
+// Unified Full Pipeline Endpoint (Handles both /api/v1/pipeline/run and /api/v1/full-pipeline/run)
+const handlePipelineRun = (req, res) => {
   const { 
     ntslRows = [], 
     npciRows = [], 
@@ -155,7 +155,8 @@ app.post('/api/v1/full-pipeline/run', (req, res) => {
     mwRows = [], 
     walletRows = [], 
     commissionRows = [], 
-    cycle = 'Cycle_1' 
+    cycle = 'Cycle_1',
+    internalCycle = 'Cycle 1'
   } = req.body;
 
   let sampleNpci = npciRows;
@@ -229,8 +230,17 @@ app.post('/api/v1/full-pipeline/run', (req, res) => {
   // 4. Generate Settlement File & IMPS Payout File
   const settlementResult = generateSettlementAndPayoutFiles(modAResult.matchedList, gefuResult.finalSettlementAmount);
 
-  res.json({
-    cycle,
+  const responseObj = {
+    cycle: cycle || internalCycle,
+    internalCycle: cycle || internalCycle,
+    product: 'UPI Recon',
+    bank: 'NSDL Payments Bank',
+    status: 'COMPLETED',
+    totalProcessed: modAResult.summary['Total Transactions'],
+    matchedCount: modAResult.summary['Matched Count'],
+    exceptionCount: modAResult.summary['Mismatched Count'],
+    matchRate: modAResult.summary['Match Rate'],
+    rate: modAResult.summary['Match Rate'],
     summary: {
       totalProcessed: modAResult.summary['Total Transactions'],
       matchedCount: modAResult.summary['Matched Count'],
@@ -249,8 +259,13 @@ app.post('/api/v1/full-pipeline/run', (req, res) => {
     // Output File 5 & 6: Settlement & Payout Files
     settlementRows: settlementResult.settlementRows,
     payoutRows: settlementResult.payoutRows
-  });
-});
+  };
+
+  res.json(responseObj);
+};
+
+app.post('/api/v1/full-pipeline/run', handlePipelineRun);
+app.post('/api/v1/pipeline/run', handlePipelineRun);
 
 // Get GEFU File Content
 app.get('/api/v1/gefu/:jobId', (req, res) => {
