@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, Tag, Calendar, Clock, ChevronDown, ChevronUp, Copy, Check, Table, FileSpreadsheet, ShieldCheck } from 'lucide-react';
+import { FileText, Download, Tag, Calendar, Clock, ChevronDown, ChevronUp, Copy, Check, Table, ShieldCheck } from 'lucide-react';
 import { getStoredJobs } from '../utils/jobHistoryStore';
 import { exportToExcel } from '../utils/excelExporter';
 import { exportGefuExcelWorkbook } from '../utils/excelWorkbookExporter';
@@ -7,7 +7,7 @@ import { exportGefuExcelWorkbook } from '../utils/excelWorkbookExporter';
 const GefuView = ({ viewMode = 'flat' }) => {
   const [jobs, setJobs] = useState([]);
   const [expandedJobId, setExpandedJobId] = useState(null);
-  const [activeSheetTab, setActiveSheetTab] = useState('Input'); // 'Input' | 'Output' | 'Field_Formats'
+  const [activeSheetTabs, setActiveSheetTabs] = useState({}); // Per-job sheet tab state
   const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
@@ -17,6 +17,12 @@ const GefuView = ({ viewMode = 'flat' }) => {
       setExpandedJobId(loadedJobs[0].jobId);
     }
   }, []);
+
+  const getJobTab = (jobId) => activeSheetTabs[jobId] || 'Input';
+
+  const setJobTab = (jobId, tab) => {
+    setActiveSheetTabs(prev => ({ ...prev, [jobId]: tab }));
+  };
 
   const handleDownloadFlatFile = (job) => {
     exportGefuExcelWorkbook(job.jobId);
@@ -69,7 +75,7 @@ const GefuView = ({ viewMode = 'flat' }) => {
     { field: 'Rate Con', casa: '1.00', gl: '1.00', rule: 'Number only', mandatory: 'Y' },
     { field: 'Ref No', casa: '0', gl: '0', rule: 'Number only', mandatory: 'Y' },
     { field: 'Ref Doc No', casa: '0', gl: '0', rule: 'Number only', mandatory: 'Y' },
-    { field: 'Transaction Description', casa: 'BBPS-JME20190815...', gl: 'BBPS-JME20190815...', rule: 'Varchar', mandatory: 'Y' },
+    { field: 'Transaction Description', casa: 'BBPS-JME20190815020855', gl: 'BBPS-JME201908150408', rule: 'Varchar', mandatory: 'Y' },
     { field: 'Option', casa: '30', gl: '30', rule: 'Number only', mandatory: 'Y' },
     { field: 'Issuer Code', casa: '00000', gl: '00000', rule: 'Number only', mandatory: 'Y' },
     { field: 'Payable Branch', casa: '0000', gl: '0000', rule: 'Number only', mandatory: 'Y' },
@@ -92,31 +98,6 @@ const GefuView = ({ viewMode = 'flat' }) => {
         </p>
       </div>
 
-      {/* Sheet Tabs Bar */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
-        <button 
-          onClick={() => setActiveSheetTab('Input')} 
-          className={`btn ${activeSheetTab === 'Input' ? 'btn-primary' : 'btn-outline'}`}
-          style={{ fontSize: '13px', padding: '8px 16px' }}
-        >
-          <Table size={15} /> Sheet 1: Input (Transactions)
-        </button>
-        <button 
-          onClick={() => setActiveSheetTab('Output')} 
-          className={`btn ${activeSheetTab === 'Output' ? 'btn-primary' : 'btn-outline'}`}
-          style={{ fontSize: '13px', padding: '8px 16px' }}
-        >
-          <FileText size={15} /> Sheet 2: Output (Fixed-Width Messages)
-        </button>
-        <button 
-          onClick={() => setActiveSheetTab('Field_Formats')} 
-          className={`btn ${activeSheetTab === 'Field_Formats' ? 'btn-primary' : 'btn-outline'}`}
-          style={{ fontSize: '13px', padding: '8px 16px' }}
-        >
-          <ShieldCheck size={15} /> Sheet 3: Field_Formats (Rulebook)
-        </button>
-      </div>
-
       {/* Detailed Tabular Jobs List */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {jobs.length === 0 ? (
@@ -126,6 +107,7 @@ const GefuView = ({ viewMode = 'flat' }) => {
         ) : (
           jobs.map(job => {
             const isExpanded = expandedJobId === job.jobId;
+            const currentTab = getJobTab(job.jobId);
 
             return (
               <div key={job.jobId} style={{ background: 'white', borderRadius: '18px', border: '1px solid var(--border)', overflow: 'hidden' }}>
@@ -172,7 +154,32 @@ const GefuView = ({ viewMode = 'flat' }) => {
                 {/* Expanded Detailed Tabular File View */}
                 {isExpanded && (
                   <div style={{ padding: '24px', borderTop: '1px solid var(--border)', background: '#F8FAFC' }}>
-                    {activeSheetTab === 'Input' && (
+                    {/* Per-Job Sheet Tabs Switcher */}
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+                      <button 
+                        onClick={() => setJobTab(job.jobId, 'Input')} 
+                        className={`btn ${currentTab === 'Input' ? 'btn-primary' : 'btn-outline'}`}
+                        style={{ fontSize: '12.5px', padding: '6px 14px' }}
+                      >
+                        <Table size={14} /> Sheet 1: Input (Transactions)
+                      </button>
+                      <button 
+                        onClick={() => setJobTab(job.jobId, 'Output')} 
+                        className={`btn ${currentTab === 'Output' ? 'btn-primary' : 'btn-outline'}`}
+                        style={{ fontSize: '12.5px', padding: '6px 14px' }}
+                      >
+                        <FileText size={14} /> Sheet 2: Output (Fixed-Width Messages)
+                      </button>
+                      <button 
+                        onClick={() => setJobTab(job.jobId, 'Field_Formats')} 
+                        className={`btn ${currentTab === 'Field_Formats' ? 'btn-primary' : 'btn-outline'}`}
+                        style={{ fontSize: '12.5px', padding: '6px 14px' }}
+                      >
+                        <ShieldCheck size={14} /> Sheet 3: Field_Formats (Rulebook)
+                      </button>
+                    </div>
+
+                    {currentTab === 'Input' && (
                       <div>
                         <span style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--primary)', display: 'block', marginBottom: '12px' }}>
                           Sheet 1: Input Data Entry Table for {job.jobId}
@@ -214,7 +221,7 @@ const GefuView = ({ viewMode = 'flat' }) => {
                       </div>
                     )}
 
-                    {activeSheetTab === 'Output' && (
+                    {currentTab === 'Output' && (
                       <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                           <span style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--primary)' }}>
@@ -231,7 +238,7 @@ const GefuView = ({ viewMode = 'flat' }) => {
                       </div>
                     )}
 
-                    {activeSheetTab === 'Field_Formats' && (
+                    {currentTab === 'Field_Formats' && (
                       <div>
                         <span style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--primary)', display: 'block', marginBottom: '12px' }}>
                           Sheet 3: Field_Formats Validation Rulebook
