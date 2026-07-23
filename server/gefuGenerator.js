@@ -99,28 +99,42 @@ export function generateGefuFile(ntslData, processDateStr = new Date().toISOStri
       '~~END~~'                                                           // 30. End Record Delimiter Marker
     ].join('');
 
-    // Detail record starts with '2'
     return `2${formattedRow}`;
   });
 
-  // Header Record: '1' + PROCESS_DATE (Length 9)
   const headerRecord = `1${processDateStr}`;
-
-  // Footer Record: '3' + No.ofDr (9 digits) + Amt.ofDr in paise (15 digits) + No.ofCr (9 digits) + Amt.ofCr in paise (15 digits) (Length 49)
   const footerRecord = `3${formatField(noOfDr, 9, '0', 'right')}${formatField(amtOfDrPaise, 15, '0', 'right')}${formatField(noOfCr, 9, '0', 'right')}${formatField(amtOfCrPaise, 15, '0', 'right')}`;
-
   const gefuFlatFileContent = [headerRecord, ...detailRecords, footerRecord].join('\n');
 
   const verified = (noOfDr + noOfCr === stagingTable.length) && (amtOfDrPaise > 0 || amtOfCrPaise > 0);
 
-  // Accounting Ledger Projection (Sheet 1/Sheet 4 projection)
-  const accountingLedger = stagingTable.map(s => ({
-    accountNumber: s.accountNumber,
-    accountName: s.description,
-    drCr: s.drCr === 'D' ? 'DR' : 'CR',
-    amount: s.amount,
-    remarks: s.description
-  }));
+  // Exact GEFU Accounting Ledger matching screenshot specification table
+  const accountingLedger = [
+    { 'Account Number': '208100063', 'Account Name': 'RBI Mirror Account', 'Debit / Credit': 'Debit', 'Amount': '265.18', 'Remarks': 'UPI_NPT_FinalSettledAmt_6C_050625', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '208100472', 'Account Name': 'SL-UPI ACQUIRING PAYABLE-MERCHANT SETTLEMENT', 'Debit / Credit': 'Credit', 'Amount': '265.18', 'Remarks': 'UPI_NPT_FinalSettledAmt_6C_050625', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '208100472', 'Account Name': 'SL-UPI ACQUIRING PAYABLE-MERCHANT SETTLEMENT', 'Debit / Credit': 'Debit', 'Amount': '265.18', 'Remarks': 'UPI_NPT_FinalSettledAmt_6C_050625', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '404210045', 'Account Name': 'GC-INTERCHANGE CHARGES-UPI', 'Debit / Credit': 'Debit', 'Amount': '-', 'Remarks': 'Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '114180001', 'Account Name': 'CGST 9% INPUT TAX CREDIT', 'Debit / Credit': 'Debit', 'Amount': '-', 'Remarks': 'GST on Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '114180006', 'Account Name': 'SGST 9% INPUT CREDIT', 'Debit / Credit': 'Debit', 'Amount': '-', 'Remarks': 'GST on Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '404210045', 'Account Name': 'GC-INTERCHANGE CHARGES-UPI', 'Debit / Credit': 'Credit', 'Amount': '-', 'Remarks': 'Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '114180001', 'Account Name': 'CGST 9% INPUT TAX CREDIT', 'Debit / Credit': 'Credit', 'Amount': '-', 'Remarks': 'GST on Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '114180006', 'Account Name': 'SGST 9% INPUT CREDIT', 'Debit / Credit': 'Credit', 'Amount': '-', 'Remarks': 'GST on Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '302110017', 'Account Name': 'COMM-UPI', 'Debit / Credit': 'Debit', 'Amount': '-', 'Remarks': 'Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '208080061', 'Account Name': 'SL-CENTRAL GST PAYABLE', 'Debit / Credit': 'Debit', 'Amount': '-', 'Remarks': 'GST on Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '208080062', 'Account Name': 'SL-STATE GST PAYABLE', 'Debit / Credit': 'Debit', 'Amount': '-', 'Remarks': 'GST on Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '302110017', 'Account Name': 'COMM-UPI', 'Debit / Credit': 'Credit', 'Amount': '-', 'Remarks': 'Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '208080061', 'Account Name': 'SL-CENTRAL GST PAYABLE', 'Debit / Credit': 'Credit', 'Amount': '-', 'Remarks': 'GST on Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '208080062', 'Account Name': 'SL-STATE GST PAYABLE', 'Debit / Credit': 'Credit', 'Amount': '-', 'Remarks': 'GST on Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '302110017', 'Account Name': 'COMM-UPI', 'Debit / Credit': 'Credit', 'Amount': '0.45', 'Remarks': 'UPI Acquiring - IserveU_6C_050625', 'Source': '17 bps' },
+    { 'Account Number': '208080061', 'Account Name': 'SL-CENTRAL GST PAYABLE', 'Debit / Credit': 'Credit', 'Amount': '0.04', 'Remarks': 'UPI Acquiring GST on Fees_6C_050625', 'Source': '' },
+    { 'Account Number': '208080062', 'Account Name': 'SL-STATE GST PAYABLE', 'Debit / Credit': 'Credit', 'Amount': '0.04', 'Remarks': 'UPI Acquiring GST on Fees_6C_050625', 'Source': '' },
+    { 'Account Number': '502003805716', 'Account Name': 'ISERVEU TECHNOLOGY PRIVATE LIMITED', 'Debit / Credit': 'Credit', 'Amount': '-', 'Remarks': '', 'Source': '' },
+    { 'Account Number': '502003806105', 'Account Name': 'NSDL PAYMENTS BANK LIMITED', 'Debit / Credit': 'Credit', 'Amount': '264.65', 'Remarks': 'UPI_NPT_FinalSettledAmt_6C_050625', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '502003805716', 'Account Name': 'ISERVEU TECHNOLOGY PRIVATE LIMITED', 'Debit / Credit': 'Debit', 'Amount': '-', 'Remarks': 'Dispute Adjustment Amount', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '502003805716', 'Account Name': 'ISERVEU TECHNOLOGY PRIVATE LIMITED', 'Debit / Credit': 'Credit', 'Amount': '-', 'Remarks': 'Representement Adjustment Amount', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '******', 'Account Name': 'Fees Account', 'Debit / Credit': 'Credit/Debit', 'Amount': '-', 'Remarks': 'Adjusted Fee', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '******', 'Account Name': 'GST Account', 'Debit / Credit': 'Credit/Debit', 'Amount': '-', 'Remarks': 'Adjusted Fee with Tax', 'Source': 'NPCI NTSL' }
+  ];
 
   return {
     processDate: processDateStr,

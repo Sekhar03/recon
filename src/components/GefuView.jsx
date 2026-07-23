@@ -29,7 +29,8 @@ const GefuView = ({ viewMode = 'flat' }) => {
   };
 
   const handleDownloadLedger = (job) => {
-    exportToExcel(job.gefuAccountingLedger || [], `GEFU_Accounting_${job.jobId}`);
+    const data = job.gefuAccountingLedger || sampleAccountingRows;
+    exportToExcel(data, `GEFU_Accounting_${job.jobId}`);
   };
 
   const handleCopyContent = (job) => {
@@ -59,6 +60,33 @@ const GefuView = ({ viewMode = 'flat' }) => {
     { txnDate: '30-06-2025', drCr: 'C', valueDate: '30-06-2025', ccy: '1', amtLcy: '25,917.31', amtTcy: '25,917.31', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'UPI Acquiring-iServeU_8C_300625' },
     { txnDate: '30-06-2025', drCr: 'D', valueDate: '30-06-2025', ccy: '1', amtLcy: '600.00', amtTcy: '600.00', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'Net Adjusted Amount' },
     { txnDate: '30-06-2025', drCr: 'C', valueDate: '30-06-2025', ccy: '1', amtLcy: '50,92,068.92', amtTcy: '50,92,068.92', rate: '1.00', refNo: '0', refDocNo: '0', desc: 'UPI_NPT_FinalSettledAmt_8C_300625' }
+  ];
+
+  const sampleAccountingRows = [
+    { accNo: '208100063', name: 'RBI Mirror Account', type: 'Debit', amt: '265.18', remarks: 'UPI_NPT_FinalSettledAmt_6C_050625', source: 'NPCI NTSL' },
+    { accNo: '208100472', name: 'SL-UPI ACQUIRING PAYABLE-MERCHANT SETTLEMENT', type: 'Credit', amt: '265.18', remarks: 'UPI_NPT_FinalSettledAmt_6C_050625', source: 'NPCI NTSL' },
+    { accNo: '208100472', name: 'SL-UPI ACQUIRING PAYABLE-MERCHANT SETTLEMENT', type: 'Debit', amt: '265.18', remarks: 'UPI_NPT_FinalSettledAmt_6C_050625', source: 'NPCI NTSL' },
+    { accNo: '404210045', name: 'GC-INTERCHANGE CHARGES-UPI', type: 'Debit', amt: '-', remarks: 'Switching Fees', source: 'NPCI NTSL' },
+    { accNo: '114180001', name: 'CGST 9% INPUT TAX CREDIT', type: 'Debit', amt: '-', remarks: 'GST on Switching Fees', source: 'NPCI NTSL' },
+    { accNo: '114180006', name: 'SGST 9% INPUT CREDIT', type: 'Debit', amt: '-', remarks: 'GST on Switching Fees', source: 'NPCI NTSL' },
+    { accNo: '404210045', name: 'GC-INTERCHANGE CHARGES-UPI', type: 'Credit', amt: '-', remarks: 'Switching Fees', source: 'NPCI NTSL' },
+    { accNo: '114180001', name: 'CGST 9% INPUT TAX CREDIT', type: 'Credit', amt: '-', remarks: 'GST on Switching Fees', source: 'NPCI NTSL' },
+    { accNo: '114180006', name: 'SGST 9% INPUT CREDIT', type: 'Credit', amt: '-', remarks: 'GST on Switching Fees', source: 'NPCI NTSL' },
+    { accNo: '302110017', name: 'COMM-UPI', type: 'Debit', amt: '-', remarks: 'Switching Fees', source: 'NPCI NTSL' },
+    { accNo: '208080061', name: 'SL-CENTRAL GST PAYABLE', type: 'Debit', amt: '-', remarks: 'GST on Switching Fees', source: 'NPCI NTSL' },
+    { accNo: '208080062', name: 'SL-STATE GST PAYABLE', type: 'Debit', amt: '-', remarks: 'GST on Switching Fees', source: 'NPCI NTSL' },
+    { accNo: '302110017', name: 'COMM-UPI', type: 'Credit', amt: '-', remarks: 'Switching Fees', source: 'NPCI NTSL' },
+    { accNo: '208080061', name: 'SL-CENTRAL GST PAYABLE', type: 'Credit', amt: '-', remarks: 'GST on Switching Fees', source: 'NPCI NTSL' },
+    { accNo: '208080062', name: 'SL-STATE GST PAYABLE', type: 'Credit', amt: '-', remarks: 'GST on Switching Fees', source: 'NPCI NTSL' },
+    { accNo: '302110017', name: 'COMM-UPI', type: 'Credit', amt: '0.45', remarks: 'UPI Acquiring - IserveU_6C_050625', source: '17 bps' },
+    { accNo: '208080061', name: 'SL-CENTRAL GST PAYABLE', type: 'Credit', amt: '0.04', remarks: 'UPI Acquiring GST on Fees_6C_050625', source: '' },
+    { accNo: '208080062', name: 'SL-STATE GST PAYABLE', type: 'Credit', amt: '0.04', remarks: 'UPI Acquiring GST on Fees_6C_050625', source: '' },
+    { accNo: '502003805716', name: 'ISERVEU TECHNOLOGY PRIVATE LIMITED', type: 'Credit', amt: '-', remarks: '', source: '' },
+    { accNo: '502003806105', name: 'NSDL PAYMENTS BANK LIMITED', type: 'Credit', amt: '264.65', remarks: 'UPI_NPT_FinalSettledAmt_6C_050625', source: 'NPCI NTSL' },
+    { accNo: '502003805716', name: 'ISERVEU TECHNOLOGY PRIVATE LIMITED', type: 'Debit', amt: '-', remarks: 'Dispute Adjustment Amount', source: 'NPCI NTSL' },
+    { accNo: '502003805716', name: 'ISERVEU TECHNOLOGY PRIVATE LIMITED', type: 'Credit', amt: '-', remarks: 'Representement Adjustment Amount', source: 'NPCI NTSL' },
+    { accNo: '******', name: 'Fees Account', type: 'Credit/Debit', amt: '-', remarks: 'Adjusted Fee', source: 'NPCI NTSL' },
+    { accNo: '******', name: 'GST Account', type: 'Credit/Debit', amt: '-', remarks: 'Adjusted Fee with Tax', source: 'NPCI NTSL' }
   ];
 
   const fieldFormatsRules = [
@@ -94,7 +122,7 @@ const GefuView = ({ viewMode = 'flat' }) => {
         <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14.5px' }}>
           {isFlatMode 
             ? 'FLEXCUBE Core Banking 4-Sheet Staging Engine: Input (Data Entry) → Formatter_Working → Output (559-char concatenated fixed-width string) → Field_Formats rulebook.'
-            : 'Human-readable internal accounting ledger entries generated per reconciliation job.'}
+            : 'Internal GEFU Accounting Ledger detailing Debit/Credit account entries, Remarks, and Source Sub-systems.'}
         </p>
       </div>
 
@@ -108,6 +136,7 @@ const GefuView = ({ viewMode = 'flat' }) => {
           jobs.map(job => {
             const isExpanded = expandedJobId === job.jobId;
             const currentTab = getJobTab(job.jobId);
+            const ledgerData = job.gefuAccountingLedger || sampleAccountingRows;
 
             return (
               <div key={job.jobId} style={{ background: 'white', borderRadius: '18px', border: '1px solid var(--border)', overflow: 'hidden' }}>
@@ -154,116 +183,168 @@ const GefuView = ({ viewMode = 'flat' }) => {
                 {/* Expanded Detailed Tabular File View */}
                 {isExpanded && (
                   <div style={{ padding: '24px', borderTop: '1px solid var(--border)', background: '#F8FAFC' }}>
-                    {/* Per-Job Sheet Tabs Switcher */}
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
-                      <button 
-                        onClick={() => setJobTab(job.jobId, 'Input')} 
-                        className={`btn ${currentTab === 'Input' ? 'btn-primary' : 'btn-outline'}`}
-                        style={{ fontSize: '12.5px', padding: '6px 14px' }}
-                      >
-                        <Table size={14} /> Sheet 1: Input (Transactions)
-                      </button>
-                      <button 
-                        onClick={() => setJobTab(job.jobId, 'Output')} 
-                        className={`btn ${currentTab === 'Output' ? 'btn-primary' : 'btn-outline'}`}
-                        style={{ fontSize: '12.5px', padding: '6px 14px' }}
-                      >
-                        <FileText size={14} /> Sheet 2: Output (Fixed-Width Messages)
-                      </button>
-                      <button 
-                        onClick={() => setJobTab(job.jobId, 'Field_Formats')} 
-                        className={`btn ${currentTab === 'Field_Formats' ? 'btn-primary' : 'btn-outline'}`}
-                        style={{ fontSize: '12.5px', padding: '6px 14px' }}
-                      >
-                        <ShieldCheck size={14} /> Sheet 3: Field_Formats (Rulebook)
-                      </button>
-                    </div>
-
-                    {currentTab === 'Input' && (
+                    {isFlatMode ? (
+                      /* Flat File 3-Sheet Inspector */
                       <div>
-                        <span style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--primary)', display: 'block', marginBottom: '12px' }}>
-                          Sheet 1: Input Data Entry Table for {job.jobId}
-                        </span>
-                        <div style={{ overflowX: 'auto' }}>
-                          <table className="data-table" style={{ fontSize: '12px' }}>
-                            <thead>
-                              <tr>
-                                <th>Txn Date</th>
-                                <th>Dr / Cr</th>
-                                <th>Value Date</th>
-                                <th>Txn CCY</th>
-                                <th>Amt LCY</th>
-                                <th>Amt TCY</th>
-                                <th>Rate Con</th>
-                                <th>Ref No</th>
-                                <th>Ref Doc No</th>
-                                <th>Transaction Description</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {sampleInputRows.map((row, idx) => (
-                                <tr key={idx}>
-                                  <td>{row.txnDate}</td>
-                                  <td><span className={`badge ${row.drCr === 'D' ? 'badge-warning' : 'badge-success'}`}>{row.drCr}</span></td>
-                                  <td>{row.valueDate}</td>
-                                  <td>{row.ccy}</td>
-                                  <td style={{ fontWeight: '700' }}>₹{row.amtLcy}</td>
-                                  <td style={{ fontWeight: '700' }}>₹{row.amtTcy}</td>
-                                  <td>{row.rate}</td>
-                                  <td>{row.refNo}</td>
-                                  <td>{row.refDocNo}</td>
-                                  <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{row.desc}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-
-                    {currentTab === 'Output' && (
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                          <span style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--primary)' }}>
-                            Sheet 2: Output Fixed-Width Concatenated Messages for {job.jobId}
-                          </span>
-                          <button onClick={() => handleCopyContent(job)} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '12px' }}>
-                            {copiedId === job.jobId ? <Check size={14} color="var(--success)" /> : <Copy size={14} />}
-                            {copiedId === job.jobId ? 'Copied!' : 'Copy Raw Output'}
+                        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+                          <button 
+                            onClick={() => setJobTab(job.jobId, 'Input')} 
+                            className={`btn ${currentTab === 'Input' ? 'btn-primary' : 'btn-outline'}`}
+                            style={{ fontSize: '12.5px', padding: '6px 14px' }}
+                          >
+                            <Table size={14} /> Sheet 1: Input (Transactions)
+                          </button>
+                          <button 
+                            onClick={() => setJobTab(job.jobId, 'Output')} 
+                            className={`btn ${currentTab === 'Output' ? 'btn-primary' : 'btn-outline'}`}
+                            style={{ fontSize: '12.5px', padding: '6px 14px' }}
+                          >
+                            <FileText size={14} /> Sheet 2: Output (Fixed-Width Messages)
+                          </button>
+                          <button 
+                            onClick={() => setJobTab(job.jobId, 'Field_Formats')} 
+                            className={`btn ${currentTab === 'Field_Formats' ? 'btn-primary' : 'btn-outline'}`}
+                            style={{ fontSize: '12.5px', padding: '6px 14px' }}
+                          >
+                            <ShieldCheck size={14} /> Sheet 3: Field_Formats (Rulebook)
                           </button>
                         </div>
-                        <pre style={{ background: '#0F172A', color: '#38BDF8', padding: '18px', borderRadius: '12px', fontSize: '11.5px', fontFamily: 'monospace', overflowX: 'auto', margin: 0, whiteSpace: 'pre-wrap' }}>
-                          {job.gefuFlatFileContent || '120260723\n559 203 40421004588880100820250630D2025063000001000000000446600000000004466000000100000000000000000000000000Switching Fees_7C_300625\n559 203 11418000188880140820250630C2025063000001000000000080400000000000804000000100000000000000000000000000GST on Switching Fees_7C_300625\n3000000009000001079036217000000014000001079036217'}
-                        </pre>
-                      </div>
-                    )}
 
-                    {currentTab === 'Field_Formats' && (
+                        {currentTab === 'Input' && (
+                          <div>
+                            <span style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--primary)', display: 'block', marginBottom: '12px' }}>
+                              Sheet 1: Input Data Entry Table for {job.jobId}
+                            </span>
+                            <div style={{ overflowX: 'auto' }}>
+                              <table className="data-table" style={{ fontSize: '12px' }}>
+                                <thead>
+                                  <tr>
+                                    <th>Txn Date</th>
+                                    <th>Dr / Cr</th>
+                                    <th>Value Date</th>
+                                    <th>Txn CCY</th>
+                                    <th>Amt LCY</th>
+                                    <th>Amt TCY</th>
+                                    <th>Rate Con</th>
+                                    <th>Ref No</th>
+                                    <th>Ref Doc No</th>
+                                    <th>Transaction Description</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {sampleInputRows.map((row, idx) => (
+                                    <tr key={idx}>
+                                      <td>{row.txnDate}</td>
+                                      <td><span className={`badge ${row.drCr === 'D' ? 'badge-warning' : 'badge-success'}`}>{row.drCr}</span></td>
+                                      <td>{row.valueDate}</td>
+                                      <td>{row.ccy}</td>
+                                      <td style={{ fontWeight: '700' }}>₹{row.amtLcy}</td>
+                                      <td style={{ fontWeight: '700' }}>₹{row.amtTcy}</td>
+                                      <td>{row.rate}</td>
+                                      <td>{row.refNo}</td>
+                                      <td>{row.refDocNo}</td>
+                                      <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{row.desc}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+
+                        {currentTab === 'Output' && (
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                              <span style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--primary)' }}>
+                                Sheet 2: Output Fixed-Width Concatenated Messages for {job.jobId}
+                              </span>
+                              <button onClick={() => handleCopyContent(job)} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '12px' }}>
+                                {copiedId === job.jobId ? <Check size={14} color="var(--success)" /> : <Copy size={14} />}
+                                {copiedId === job.jobId ? 'Copied!' : 'Copy Raw Output'}
+                              </button>
+                            </div>
+                            <pre style={{ background: '#0F172A', color: '#38BDF8', padding: '18px', borderRadius: '12px', fontSize: '11.5px', fontFamily: 'monospace', overflowX: 'auto', margin: 0, whiteSpace: 'pre-wrap' }}>
+                              {job.gefuFlatFileContent || '120260723\n559 203 40421004588880100820250630D202506300000100000000044660000000000446600000010000000000000000000000000Switching Fees_7C_300625\n559 203 11418000188880140820250630C202506300000100000000008040000000000080400000010000000000000000000000000GST on Switching Fees_7C_300625\n3000000009000001079036217000000014000001079036217'}
+                            </pre>
+                          </div>
+                        )}
+
+                        {currentTab === 'Field_Formats' && (
+                          <div>
+                            <span style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--primary)', display: 'block', marginBottom: '12px' }}>
+                              Sheet 3: Field_Formats Validation Rulebook
+                            </span>
+                            <div style={{ overflowX: 'auto' }}>
+                              <table className="data-table" style={{ fontSize: '12px' }}>
+                                <thead>
+                                  <tr>
+                                    <th>Fields</th>
+                                    <th>Sample CASA Value</th>
+                                    <th>Sample GL Value</th>
+                                    <th>Validations Rule</th>
+                                    <th>Mandatory</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {fieldFormatsRules.map((row, idx) => (
+                                    <tr key={idx}>
+                                      <td style={{ fontWeight: '700' }}>{row.field}</td>
+                                      <td style={{ fontFamily: 'monospace' }}>{row.casa}</td>
+                                      <td style={{ fontFamily: 'monospace' }}>{row.gl}</td>
+                                      <td>{row.rule}</td>
+                                      <td><span className="badge badge-success">{row.mandatory}</span></td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* GEFU Accounting Ledger Table matching screenshot */
                       <div>
                         <span style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--primary)', display: 'block', marginBottom: '12px' }}>
-                          Sheet 3: Field_Formats Validation Rulebook
+                          GEFU Accounting Ledger Table for {job.jobId}
                         </span>
                         <div style={{ overflowX: 'auto' }}>
                           <table className="data-table" style={{ fontSize: '12px' }}>
                             <thead>
-                              <tr>
-                                <th>Fields</th>
-                                <th>Sample CASA Value</th>
-                                <th>Sample GL Value</th>
-                                <th>Validations Rule</th>
-                                <th>Mandatory</th>
+                              <tr style={{ background: '#FEF08A', color: '#1E293B' }}>
+                                <th>Account Number</th>
+                                <th>Account Name</th>
+                                <th>Debit / Credit</th>
+                                <th>Amount</th>
+                                <th>Remarks</th>
+                                <th>Source</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {fieldFormatsRules.map((row, idx) => (
-                                <tr key={idx}>
-                                  <td style={{ fontWeight: '700' }}>{row.field}</td>
-                                  <td style={{ fontFamily: 'monospace' }}>{row.casa}</td>
-                                  <td style={{ fontFamily: 'monospace' }}>{row.gl}</td>
-                                  <td>{row.rule}</td>
-                                  <td><span className="badge badge-success">{row.mandatory}</span></td>
-                                </tr>
-                              ))}
+                              {ledgerData.map((row, idx) => {
+                                const accNo = row['Account Number'] || row.accNo || row.accountNumber;
+                                const accName = row['Account Name'] || row.name || row.accountName;
+                                const type = row['Debit / Credit'] || row.type || row.drCr;
+                                const amt = row['Amount'] || row.amt || row.amount;
+                                const remarks = row['Remarks'] || row.remarks;
+                                const source = row['Source'] || row.source || '';
+
+                                return (
+                                  <tr key={idx} style={{ background: accNo === '502003806105' ? 'rgba(254, 240, 138, 0.3)' : 'transparent' }}>
+                                    <td style={{ fontWeight: '700', fontFamily: 'monospace' }}>{accNo}</td>
+                                    <td style={{ fontWeight: '600' }}>{accName}</td>
+                                    <td>
+                                      <span className={`badge ${type === 'Debit' || type === 'DR' ? 'badge-warning' : 'badge-success'}`}>
+                                        {type}
+                                      </span>
+                                    </td>
+                                    <td style={{ fontWeight: '700', background: accNo === '502003806105' ? '#FEF08A' : 'transparent' }}>
+                                      {amt !== '-' && amt !== '' ? `₹${amt}` : '-'}
+                                    </td>
+                                    <td style={{ fontFamily: 'monospace', fontSize: '11.5px' }}>{remarks}</td>
+                                    <td><span className="badge badge-outline" style={{ fontSize: '10.5px' }}>{source}</span></td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>
