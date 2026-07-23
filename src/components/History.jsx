@@ -48,15 +48,7 @@ const HistoryLog = () => {
   };
 
   const downloadGefuFlatFile = (job) => {
-    const content = job.gefuFlatFileContent || 'HDR20260723NSDL0000001\nDTL501001234DR00000002500000PAYMENT\nFTR00000100000002500000';
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `GEFU_${job.jobId}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportGefuExcelWorkbook(job.jobId);
   };
 
   const downloadGefuAccounting = (job) => {

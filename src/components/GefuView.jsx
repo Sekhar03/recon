@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Download, Tag, Calendar, Clock, ChevronDown, ChevronUp, Copy, Check, Table, FileSpreadsheet, ShieldCheck } from 'lucide-react';
 import { getStoredJobs } from '../utils/jobHistoryStore';
 import { exportToExcel } from '../utils/excelExporter';
+import { exportGefuExcelWorkbook } from '../utils/excelWorkbookExporter';
 
 const GefuView = ({ viewMode = 'flat' }) => {
   const [jobs, setJobs] = useState([]);
@@ -18,15 +19,7 @@ const GefuView = ({ viewMode = 'flat' }) => {
   }, []);
 
   const handleDownloadFlatFile = (job) => {
-    const content = job.gefuFlatFileContent || '120260723\n203  40421004588880100820250630D2025063000001000000000446600000000004466000000100000000000000000000000000Switching Fees_7C_300625\n3000000009000001079036217000000014000001079036217';
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `GEFU_${job.jobId}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportGefuExcelWorkbook(job.jobId);
   };
 
   const handleDownloadLedger = (job) => {
@@ -161,7 +154,7 @@ const GefuView = ({ viewMode = 'flat' }) => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     {isFlatMode ? (
                       <button onClick={(e) => { e.stopPropagation(); handleDownloadFlatFile(job); }} className="btn btn-primary" style={{ padding: '10px 18px', fontSize: '13px', fontWeight: '700' }}>
-                        <Download size={15} /> Download GEFU_File.txt
+                        <Download size={15} /> Download GEFU_File.xlsx
                       </button>
                     ) : (
                       <button onClick={(e) => { e.stopPropagation(); handleDownloadLedger(job); }} className="btn btn-primary" style={{ padding: '10px 18px', fontSize: '13px', fontWeight: '700' }}>

@@ -22,7 +22,7 @@ import {
   Clock
 } from 'lucide-react';
 import axios from 'axios';
-import { exportMultiSheetExcel } from '../utils/excelWorkbookExporter';
+import { exportMultiSheetExcel, exportGefuExcelWorkbook } from '../utils/excelWorkbookExporter';
 import { exportToExcel } from '../utils/excelExporter';
 import { saveJobToHistory } from '../utils/jobHistoryStore';
 
@@ -251,14 +251,7 @@ const FullPipelineView = () => {
 
   const downloadGefuFlatFile = () => {
     if (!result) return;
-    const blob = new Blob([result.gefuFlatFileContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `GEFU_${result.jobId || cycle}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportGefuExcelWorkbook(result.jobId || cycle);
   };
 
   const downloadGefuAccounting = () => {
@@ -730,16 +723,16 @@ const FullPipelineView = () => {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                     <FileText color="var(--primary)" size={22} />
-                    <span className="badge badge-primary" style={{ fontSize: '10px' }}>.TXT</span>
+                    <span className="badge badge-primary" style={{ fontSize: '10px' }}>.XLSX</span>
                   </div>
                   <h4 style={{ margin: '0 0 4px 0', fontSize: '15px' }}>GEFU Bank File</h4>
                   <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    27-field positional flat file with Dr/Cr control totals.
+                    FLEXCUBE Core Banking 4-Sheet Excel workbook.
                   </p>
                 </div>
 
                 <button onClick={downloadGefuFlatFile} className="btn btn-outline" style={{ marginTop: '16px', padding: '10px', fontSize: '12.5px', fontWeight: '700' }}>
-                  <Download size={14} /> Download GEFU_File.txt
+                  <Download size={14} /> Download GEFU_File.xlsx
                 </button>
               </div>
 

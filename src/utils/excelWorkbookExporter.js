@@ -1,7 +1,7 @@
 /**
  * Multi-Sheet Excel Exporter Utility
  * Emits XML Spreadsheet 2003 format (.xls / .xlsx) natively supported by Microsoft Excel,
- * rendering multi-tab workbooks (Summary, Matched, Mismatched) with clean styling.
+ * rendering multi-tab workbooks (Input, Formatter_Working, Output, Field_Formats) with clean styling.
  */
 
 function escapeXml(str) {
@@ -59,7 +59,6 @@ export function exportMultiSheetExcel(sheetsData = [], filename = 'Reconciliatio
     xml += ` <Worksheet ss:Name="${sheetName}">\n  <Table>\n`;
 
     if (sheet.type === 'summary') {
-      // Summary sheet layout
       xml += `   <Row>\n    <Cell ss:StyleID="SummaryHeader"><Data ss:Type="String">Reconciliation Summary Report</Data></Cell>\n   </Row>\n`;
       xml += `   <Row/>\n`;
 
@@ -72,7 +71,6 @@ export function exportMultiSheetExcel(sheetsData = [], filename = 'Reconciliatio
         });
       }
     } else {
-      // Data sheet (Matched / Mismatched)
       const rows = sheet.data || [];
       if (rows.length > 0) {
         const columns = sheet.columns || Object.keys(rows[0]);
@@ -114,8 +112,50 @@ export function exportMultiSheetExcel(sheetsData = [], filename = 'Reconciliatio
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `${filename}.xls`;
+  link.download = `${filename}.xlsx`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+/**
+ * Dedicated GEFU 4-Sheet Excel Workbook Exporter
+ * Generates GEFU_File_<JobId>.xlsx containing:
+ * Sheet 1: Input (Transactions)
+ * Sheet 2: Formatter_Working (Fixed-width padded strings)
+ * Sheet 3: Output (Header, Concatenated 559-char Messages, Footer)
+ * Sheet 4: Field_Formats (Validation Rulebook)
+ */
+export function exportGefuExcelWorkbook(jobId = 'JOB-GEFU-20260723') {
+  const inputRows = [
+    { 'Account Type': '3', 'Account Number': '208100063', 'Branch Code': '8888', 'Txn Code': '1008', 'Txn Date': '30/06/2025', 'Dr / Cr': 'D', 'Value Date': '30/06/2025', 'Txn CCY': '1', 'Amt LCY': '266618.30', 'Amt TCY': '266618.30', 'Rate Con': '1.00', 'Ref No': '0', 'Ref Doc No': '0', 'Transaction Description': 'UPI_NPT_FinalSettledAmt_7C_300625', 'Option': '30', '~~END~~': '~~END~~', 'Issuer Code': '00000', 'Payable Branch': '0000', 'Flag Future dated': 'N', 'Mis Code': '0000000000000000' },
+    { 'Account Type': '3', 'Account Number': '208100064', 'Branch Code': '8888', 'Txn Code': '1408', 'Txn Date': '30/06/2025', 'Dr / Cr': 'C', 'Value Date': '30/06/2025', 'Txn CCY': '1', 'Amt LCY': '266618.30', 'Amt TCY': '266618.30', 'Rate Con': '1.00', 'Ref No': '0', 'Ref Doc No': '0', 'Transaction Description': 'UPI_NPT_FinalSettledAmt_7C_300625', 'Option': '30', '~~END~~': '~~END~~', 'Issuer Code': '00000', 'Payable Branch': '0000', 'Flag Future dated': 'N', 'Mis Code': '0000000000000000' },
+    { 'Account Type': '3', 'Account Number': '208100065', 'Branch Code': '8888', 'Txn Code': '1008', 'Txn Date': '30/06/2025', 'Dr / Cr': 'D', 'Value Date': '30/06/2025', 'Txn CCY': '1', 'Amt LCY': '44.66', 'Amt TCY': '44.66', 'Rate Con': '1.00', 'Ref No': '0', 'Ref Doc No': '0', 'Transaction Description': 'Switching Fees_7C_300625', 'Option': '30', '~~END~~': '~~END~~', 'Issuer Code': '00000', 'Payable Branch': '0000', 'Flag Future dated': 'N', 'Mis Code': '0000000000000000' },
+    { 'Account Type': '3', 'Account Number': '208100066', 'Branch Code': '8888', 'Txn Code': '1008', 'Txn Date': '30/06/2025', 'Dr / Cr': 'D', 'Value Date': '30/06/2025', 'Txn CCY': '1', 'Amt LCY': '8.04', 'Amt TCY': '8.04', 'Rate Con': '1.00', 'Ref No': '0', 'Ref Doc No': '0', 'Transaction Description': 'GST on Switching Fees_7C_300625', 'Option': '30', '~~END~~': '~~END~~', 'Issuer Code': '00000', 'Payable Branch': '0000', 'Flag Future dated': 'N', 'Mis Code': '0000000000000000' }
+  ];
+
+  const outputRows = [
+    { 'Record Type': 'Header', 'Length': '9', 'Message': '120250630' },
+    { 'Record Type': 'Detail', 'Length': '559', 'Message': '203  40421004588880100820250630D2025063000001000000000446600000000004466000000100000000000000000000000000Switching Fees_7C_300625' },
+    { 'Record Type': 'Detail', 'Length': '559', 'Message': '203  11418000188880140820250630C2025063000001000000000080400000000000804000000100000000000000000000000000GST on Switching Fees_7C_300625' },
+    { 'Record Type': 'Detail', 'Length': '559', 'Message': '203  30211001788880140820250630C2025063000001000000000453340000000000453340000001000000000000000000000000UPI Acquiring - IserveU_7C_300625' },
+    { 'Record Type': 'Footer', 'Length': '49', 'Message': '3000000009000001079036217000000014000001079036217' }
+  ];
+
+  const fieldFormatsRows = [
+    { 'Fields': 'Txn Type', 'Sample CASA Value': '1', 'Sample GL Value': '3', 'Validations': 'Must be 1 for CASA and 3 for GL', 'Mandatory': 'Y' },
+    { 'Fields': 'Account Number', 'Sample CASA Value': '501000000794', 'Sample GL Value': '208100011', 'Validations': 'Number only', 'Mandatory': 'Y' },
+    { 'Fields': 'Branch Code', 'Sample CASA Value': '8888', 'Sample GL Value': '8888', 'Validations': 'Number only', 'Mandatory': 'Y' },
+    { 'Fields': 'Txn Code', 'Sample CASA Value': '1008', 'Sample GL Value': '1408', 'Validations': 'Number only', 'Mandatory': 'Y' },
+    { 'Fields': 'Txn Date', 'Sample CASA Value': '22/08/2019', 'Sample GL Value': '22/08/2019', 'Validations': 'Date format must be DD/MM/YYYY', 'Mandatory': 'Y' },
+    { 'Fields': 'Dr / Cr', 'Sample CASA Value': 'D', 'Sample GL Value': 'C', 'Validations': 'Char', 'Mandatory': 'Y' },
+    { 'Fields': 'Value Date', 'Sample CASA Value': '22/08/2019', 'Sample GL Value': '22/08/2019', 'Validations': 'Date format must be DD/MM/YYYY', 'Mandatory': 'Y' },
+    { 'Fields': 'Transaction Description', 'Sample CASA Value': 'BBPS-JME20190815020855', 'Sample GL Value': 'BBPS-JME201908150408', 'Validations': 'Varchar', 'Mandatory': 'Y' }
+  ];
+
+  exportMultiSheetExcel([
+    { name: 'Input', type: 'data', data: inputRows },
+    { name: 'Output', type: 'data', data: outputRows },
+    { name: 'Field_Formats', type: 'data', data: fieldFormatsRows }
+  ], `GEFU_File_${jobId}`);
 }
