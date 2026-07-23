@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, CheckCircle2, Filter, ShieldAlert, History, UserCheck, Check, X, FileSpreadsheet } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Filter, ShieldAlert, History, UserCheck, Check, X, FileSpreadsheet, Download } from 'lucide-react';
 import axios from 'axios';
+import { exportToExcel } from '../utils/excelExporter';
 
 const ExceptionReviewer = () => {
   const [activeTab, setActiveTab] = useState('txn-exceptions');
@@ -20,10 +21,22 @@ const ExceptionReviewer = () => {
       .then(res => {
         setExceptions(res.data.transactionExceptions || []);
         setPayoutExceptions(res.data.payoutExceptions || []);
-      });
+      })
+      .catch(() => {});
 
     axios.get('/api/v1/audit-logs')
-      .then(res => setAuditLogs(res.data || []));
+      .then(res => setAuditLogs(res.data || []))
+      .catch(() => {});
+  };
+
+  const handleExportExcel = () => {
+    if (activeTab === 'txn-exceptions') {
+      exportToExcel(exceptions, 'Transaction_Mismatches_Report');
+    } else if (activeTab === 'payout-exceptions') {
+      exportToExcel(payoutExceptions, 'Payout_Discrepancies_Report');
+    } else {
+      exportToExcel(auditLogs, 'Reconciliation_Audit_Trail');
+    }
   };
 
   const handleDisposition = (item, action) => {
@@ -61,6 +74,9 @@ const ExceptionReviewer = () => {
             Interactive disposition dashboard for 4-way transaction mismatches and 3-way payout discrepancies with immutable audit logging.
           </p>
         </div>
+        <button onClick={handleExportExcel} className="btn btn-primary">
+          <Download size={16} /> Export Mismatches Excel
+        </button>
       </div>
 
       {/* Main Tabs */}

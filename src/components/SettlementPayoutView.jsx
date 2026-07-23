@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Layers, Download, ShieldCheck, AlertCircle, RefreshCcw, DollarSign, Split, CheckCircle2 } from 'lucide-react';
 import axios from 'axios';
-import { downloadCSV } from '../utils/csvExport';
+import { exportToExcel } from '../utils/excelExporter';
 
 const SettlementPayoutView = ({ jobId }) => {
   const [activeSheet, setActiveSheet] = useState('Sheet3');
@@ -48,13 +48,13 @@ const SettlementPayoutView = ({ jobId }) => {
 
   const handleDownloadSettlement = () => {
     if (settlementData?.settlementRows) {
-      downloadCSV(settlementData.settlementRows, 'Merchant_Settlement_File');
+      exportToExcel(settlementData.settlementRows, 'Merchant_Settlement_File');
     }
   };
 
   const handleDownloadPayout = () => {
     if (settlementData?.payoutRows) {
-      downloadCSV(settlementData.payoutRows, 'Payout_Processor_IMPS_File');
+      exportToExcel(settlementData.payoutRows, 'IMPS_Payout_File');
     }
   };
 

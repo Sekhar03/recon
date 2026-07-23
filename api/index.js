@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import { getInternalCycleForNpci, getCycleScheduleStatus, CYCLE_MAPPINGS, INTERNAL_CYCLES } from '../server/cycleScheduler.js';
-import { run4WayReconciliation, DEFAULT_RULES_ENGINE } from '../server/reconEngine.js';
+import { run4WayReconciliation, RECON_RULES } from '../server/reconEngine.js';
 import { generateGefuFile, detectOOXMLFormat } from '../server/gefuGenerator.js';
 import { runCommissionReconciliation } from '../server/commissionRecon.js';
 import { generateSettlementAndPayoutFiles } from '../server/settlementPayoutEngine.js';
@@ -114,7 +114,7 @@ app.get('/api/v1/cycles/schedule', (req, res) => {
 
 // Dynamic Rules Matrix Configuration
 app.get('/api/v1/rules', (req, res) => {
-  res.json(DEFAULT_RULES_ENGINE);
+  res.json(RECON_RULES);
 });
 
 // Trigger End-to-End UPI Recon & Settlement Pipeline

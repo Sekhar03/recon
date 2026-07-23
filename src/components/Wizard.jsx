@@ -14,10 +14,12 @@ import {
   X,
   ArrowRight,
   Layers,
-  Split
+  Split,
+  Download
 } from 'lucide-react';
 import axios from 'axios';
 import { PRODUCTS, INTERNAL_CYCLES } from '../utils/constants';
+import { exportToExcel } from '../utils/excelExporter';
 import ResultsView from './ResultsView';
 
 const Wizard = ({ onComplete }) => {
@@ -333,6 +335,36 @@ const Wizard = ({ onComplete }) => {
                   <div style={{ padding: '16px', background: 'var(--bg-hover)', borderRadius: '12px' }}>
                     <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>IMPS Payout Rows</p>
                     <h3 style={{ margin: '4px 0 0 0', color: 'var(--secondary)' }}>{pipelineOutput.job?.payoutRowCount} Rows</h3>
+                  </div>
+                </div>
+
+                {/* ── Excel Downloads Section ── */}
+                <div style={{ background: 'var(--bg-hover)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)', marginBottom: '32px' }}>
+                  <h3 style={{ fontSize: '18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Download color="var(--primary)" size={20} /> Download Reconciliation Excel Reports
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                    <button 
+                      onClick={() => exportToExcel(pipelineOutput.reconResult?.matchedList || [], `4Way_Reconciled_Master_${pipelineOutput.job?.jobId}`)} 
+                      className="btn btn-outline"
+                      style={{ justifyContent: 'center', padding: '14px' }}
+                    >
+                      <Download size={16} /> Reconciled Ledger Excel
+                    </button>
+                    <button 
+                      onClick={() => exportToExcel(pipelineOutput.settlementResult?.settlementRows || [], `Merchant_Settlement_File_${pipelineOutput.job?.jobId}`)} 
+                      className="btn btn-outline"
+                      style={{ justifyContent: 'center', padding: '14px' }}
+                    >
+                      <Download size={16} /> Merchant Settlement Excel
+                    </button>
+                    <button 
+                      onClick={() => exportToExcel(pipelineOutput.settlementResult?.payoutRows || [], `IMPS_Payout_File_${pipelineOutput.job?.jobId}`)} 
+                      className="btn btn-primary"
+                      style={{ justifyContent: 'center', padding: '14px' }}
+                    >
+                      <Download size={16} /> IMPS Payout File Excel
+                    </button>
                   </div>
                 </div>
               </div>

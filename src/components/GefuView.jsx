@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Download, CheckCircle2, AlertOctagon, Code, Database, ShieldCheck, Copy, Check } from 'lucide-react';
 import axios from 'axios';
-import { downloadCSV } from '../utils/csvExport';
+import { exportToExcel } from '../utils/excelExporter';
 
 const GefuView = ({ jobId }) => {
   const [activeSheet, setActiveSheet] = useState('Output');
@@ -45,7 +45,7 @@ const GefuView = ({ jobId }) => {
 
   const handleDownloadLedger = () => {
     if (!gefuData || !gefuData.accountingLedger) return;
-    downloadCSV(gefuData.accountingLedger, `GEFU_Accounting_Ledger_${gefuData.processDate}`);
+    exportToExcel(gefuData.accountingLedger, `GEFU_Accounting_Ledger_${gefuData.processDate}`);
   };
 
   const handleCopy = () => {

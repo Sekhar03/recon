@@ -1,125 +1,43 @@
 /**
- * 3.2 4-Way UPI Transaction Reconciliation Engine
+ * 4-Way UPI Transaction Reconciliation Engine
  * Joins NPCI, Switch, Middleware, and Wallet extracts.
- * Applies configurable rules engine for mismatch classification, disposition, and auto-actions.
+ * Reconciles transactions and classifies exceptions cleanly for review and Excel export.
  */
 
-export const DEFAULT_RULES_ENGINE = [
-  {
-    id: 'RULE_1',
-    npci: 'Success',
-    switch: 'Success',
-    middleware: 'Success',
-    wallet: 'Success',
-    action: 'No action (matched)',
-    isMatched: true,
-    autoActionable: true
-  },
-  {
-    id: 'RULE_2',
-    npci: 'Success',
-    switch: 'Success',
-    middleware: 'In Progress',
-    wallet: 'N/A',
-    action: 'Raise credit adjustment',
-    isMatched: false,
-    autoActionable: false
-  },
-  {
-    id: 'RULE_3',
-    npci: 'Success',
-    switch: 'Success',
-    middleware: 'In Progress',
-    wallet: 'Success',
-    action: 'Update Middleware status -> Success',
-    isMatched: false,
-    autoActionable: true
-  },
-  {
-    id: 'RULE_4',
-    npci: 'Success',
-    switch: 'Success',
-    middleware: 'Success',
-    wallet: 'N/A',
-    action: 'Process wallet operation -> Success',
-    isMatched: false,
-    autoActionable: true
-  },
-  {
-    id: 'RULE_5',
-    npci: 'Pending',
-    switch: 'Pending',
-    middleware: 'In Progress',
-    wallet: 'N/A',
-    action: 'Raise RET in URCS portal',
-    isMatched: false,
-    autoActionable: false
-  },
-  {
-    id: 'RULE_6',
-    npci: 'Success',
-    switch: 'Failed',
-    middleware: 'Failed',
-    wallet: 'N/A',
-    action: 'Raise RET in URCS portal',
-    isMatched: false,
-    autoActionable: false
-  },
-  {
-    id: 'RULE_7',
-    npci: 'Pending',
-    switch: 'Success',
-    middleware: 'Success',
-    wallet: 'Success',
-    action: 'Raise TCC in URCS portal',
-    isMatched: false,
-    autoActionable: false
-  },
-  {
-    id: 'RULE_8',
-    npci: 'Success',
-    switch: 'Pending',
-    middleware: 'Success',
-    wallet: 'Success',
-    action: 'No action',
-    isMatched: false,
-    autoActionable: true
-  }
+export const RECON_RULES = [
+  { id: 'RULE_1', npci: 'Success', switch: 'Success', middleware: 'Success', wallet: 'Success', status: 'MATCHED', desc: '4-Way Fully Matched (Settlement Eligible)' },
+  { id: 'RULE_2', npci: 'Success', switch: 'Success', middleware: 'In Progress', wallet: 'N/A', status: 'MISMATCH', desc: 'Middleware Pending / Credit Adjustment Required' },
+  { id: 'RULE_3', npci: 'Success', switch: 'Success', middleware: 'In Progress', wallet: 'Success', status: 'MISMATCH', desc: 'Middleware Status Sync Needed' },
+  { id: 'RULE_4', npci: 'Success', switch: 'Success', middleware: 'Success', wallet: 'N/A', status: 'MISMATCH', desc: 'Wallet Debited / Pending Sync' },
+  { id: 'RULE_5', npci: 'Pending', switch: 'Pending', middleware: 'In Progress', wallet: 'N/A', status: 'MISMATCH', desc: 'RET Portal Action Required' },
+  { id: 'RULE_6', npci: 'Success', switch: 'Failed', middleware: 'Failed', wallet: 'N/A', status: 'MISMATCH', desc: 'Switch/Middleware Failed / RET Action Required' },
+  { id: 'RULE_7', npci: 'Pending', switch: 'Success', middleware: 'Success', wallet: 'Success', status: 'MISMATCH', desc: 'TCC Portal Action Required' },
+  { id: 'RULE_8', npci: 'Success', switch: 'Pending', middleware: 'Success', wallet: 'Success', status: 'MISMATCH', desc: 'Switch Pending' }
 ];
 
-export function run4WayReconciliation(npciRows, switchRows, mwRows, walletRows, customRules = DEFAULT_RULES_ENGINE) {
+export function run4WayReconciliation(npciRows = [], switchRows = [], mwRows = [], walletRows = [], customRules = RECON_RULES) {
   const matchedList = [];
   const exceptionQueue = [];
-  const autoActionsExecuted = [];
 
-  // Indexing maps for multi-source joins
+  // Build high-performance lookup maps
   const switchMapByTxnId = new Map();
-  const switchMapByRef = new Map();
   const switchMapByRrn = new Map();
-
   switchRows.forEach(row => {
     if (row.switch_txn_id || row.npci_txn_id) switchMapByTxnId.set(String(row.switch_txn_id || row.npci_txn_id), row);
-    if (row.client_ref_id) switchMapByRef.set(String(row.client_ref_id), row);
     if (row.rrn) switchMapByRrn.set(String(row.rrn), row);
   });
 
   const mwMapById = new Map();
-  const mwMapByTid = new Map();
   mwRows.forEach(row => {
-    if (row.Id) mwMapById.set(String(row.Id), row);
-    if (row.apiTid) mwMapByTid.set(String(row.apiTid), row);
+    if (row.Id || row.apiTid) mwMapById.set(String(row.Id || row.apiTid), row);
   });
 
   const walletMapByRelId = new Map();
-  const walletMapById = new Map();
-  const walletMapByRef = new Map();
   walletRows.forEach(row => {
-    if (row.relationalId) walletMapByRelId.set(String(row.relationalId), row);
-    if (row.Id) walletMapById.set(String(row.Id), row);
-    if (row.referenceNo) walletMapByRef.set(String(row.referenceNo), row);
+    if (row.relationalId || row.Id) walletMapByRelId.set(String(row.relationalId || row.Id), row);
   });
 
-  // Reconcile each NPCI record
+  // Reconcile each NPCI transaction
   npciRows.forEach(npci => {
     const npciTxnId = npci['TXN ID'] || npci.txn_id || npci.RRN || npci.rrn;
     const rrn = npci.RRN || npci.rrn || 'N/A';
@@ -127,100 +45,73 @@ export function run4WayReconciliation(npciRows, switchRows, mwRows, walletRows, 
     // 1. Join Switch
     const switchRow = switchMapByTxnId.get(String(npciTxnId)) || switchMapByRrn.get(String(rrn)) || null;
 
-    // 2. Join Middleware (via Switch client_ref_id or direct npciTxnId)
+    // 2. Join Middleware
     let mwRow = null;
     if (switchRow && switchRow.client_ref_id) {
-      mwRow = mwMapById.get(String(switchRow.client_ref_id)) || mwMapByTid.get(String(switchRow.client_ref_id));
+      mwRow = mwMapById.get(String(switchRow.client_ref_id));
     }
     if (!mwRow) {
-      mwRow = mwMapById.get(String(npciTxnId)) || mwMapByTid.get(String(npciTxnId));
+      mwRow = mwMapById.get(String(npciTxnId));
     }
 
-    // 3. Join Wallet (via Middleware Id or direct npciTxnId)
+    // 3. Join Wallet
     let walletRow = null;
     if (mwRow && mwRow.Id) {
-      walletRow = walletMapByRelId.get(String(mwRow.Id)) || walletMapById.get(String(mwRow.Id));
+      walletRow = walletMapByRelId.get(String(mwRow.Id));
     }
     if (!walletRow) {
-      walletRow = walletMapByRelId.get(String(npciTxnId)) || walletMapByRef.get(String(npciTxnId));
+      walletRow = walletMapByRelId.get(String(npciTxnId));
     }
 
     // Status Normalization
-    const rawNpciResp = String(npci['RESPONSE CODE'] || npci.response_code || npci.status || '').toUpperCase();
-    const npciStatus = (rawNpciResp === '00' || rawNpciResp === 'SUCCESS') ? 'Success' :
-                      (rawNpciResp === 'PENDING' || rawNpciResp === 'IN_PROGRESS') ? 'Pending' : 'Failed';
+    const rawNpci = String(npci['RESPONSE CODE'] || npci.response_code || npci.status || '').toUpperCase();
+    const npciStatus = (rawNpci === '00' || rawNpci === 'SUCCESS') ? 'Success' : (rawNpci === 'PENDING' ? 'Pending' : 'Failed');
 
-    const rawSwitchStatus = switchRow ? String(switchRow.status || switchRow.response_code || '').toUpperCase() : 'N/A';
-    const switchStatus = switchRow ? ((rawSwitchStatus === 'SUCCESS' || rawSwitchStatus === '00') ? 'Success' :
-                         (rawSwitchStatus === 'PENDING' || rawSwitchStatus === 'IN_PROGRESS') ? 'Pending' : 'Failed') : 'N/A';
+    const rawSwitch = switchRow ? String(switchRow.status || switchRow.response_code || '').toUpperCase() : 'N/A';
+    const switchStatus = switchRow ? ((rawSwitch === 'SUCCESS' || rawSwitch === '00') ? 'Success' : (rawSwitch === 'PENDING' ? 'Pending' : 'Failed')) : 'N/A';
 
-    const rawMwStatus = mwRow ? String(mwRow.status || '').toUpperCase() : 'N/A';
-    const mwStatus = mwRow ? ((rawMwStatus === 'SUCCESS') ? 'Success' :
-                     (rawMwStatus === 'IN_PROGRESS' || rawMwStatus === 'PENDING') ? 'In Progress' : 'Failed') : 'N/A';
+    const rawMw = mwRow ? String(mwRow.status || '').toUpperCase() : 'N/A';
+    const mwStatus = mwRow ? ((rawMw === 'SUCCESS') ? 'Success' : (rawMw === 'IN_PROGRESS' || rawMw === 'PENDING' ? 'In Progress' : 'Failed')) : 'N/A';
 
-    const rawWalletStatus = walletRow ? String(walletRow.status || '').toUpperCase() : 'N/A';
-    const walletStatus = walletRow ? ((rawWalletStatus === 'SUCCESS') ? 'Success' :
-                        (rawWalletStatus === 'IN_PROGRESS' || rawWalletStatus === 'PENDING') ? 'In Progress' : 'Failed') : 'N/A';
+    const rawWallet = walletRow ? String(walletRow.status || '').toUpperCase() : 'N/A';
+    const walletStatus = walletRow ? ((rawWallet === 'SUCCESS') ? 'Success' : (rawWallet === 'IN_PROGRESS' || rawWallet === 'PENDING' ? 'In Progress' : 'Failed')) : 'N/A';
 
-    // Amount Normalization (NPCI amount in paise vs rupees check)
+    // Amount Normalization
     let npciAmt = parseFloat(npci['SETTLEMENT AMOUNT'] || npci.amount || 0);
     if (npciAmt > 100000) npciAmt = npciAmt / 100;
+    const amount = npciAmt || parseFloat(switchRow?.amount || 0) || parseFloat(mwRow?.amountTransacted || 0);
 
-    const switchAmt = switchRow ? parseFloat(switchRow.amount || 0) : 0;
-    const mwAmt = mwRow ? parseFloat(mwRow.amountTransacted || 0) : 0;
-    const finalAmt = npciAmt || switchAmt || mwAmt;
-
-    // Cross-check RRN and payer_vpa between NPCI and Switch
-    const switchPayerVpa = switchRow?.payer_vpa || 'N/A';
-    const npciPayerVpa = npci['payer VPA'] || npci.payer_vpa || 'N/A';
-    const vpaMismatch = (switchPayerVpa !== 'N/A' && npciPayerVpa !== 'N/A' && switchPayerVpa.toLowerCase() !== npciPayerVpa.toLowerCase());
-
-    // Evaluate rules matrix
-    let matchedRule = customRules.find(rule => 
-      rule.npci === npciStatus &&
-      rule.switch === switchStatus &&
-      rule.middleware === mwStatus &&
-      (rule.wallet === 'N/A' || rule.wallet === walletStatus)
+    // Rule Evaluation
+    let rule = customRules.find(r => 
+      r.npci === npciStatus &&
+      r.switch === switchStatus &&
+      r.middleware === mwStatus &&
+      (r.wallet === 'N/A' || r.wallet === walletStatus)
     );
 
-    if (!matchedRule || vpaMismatch) {
-      matchedRule = {
-        id: vpaMismatch ? 'VPA_MISMATCH_EXCEPTION' : 'CUSTOM_EXCEPTION',
-        action: vpaMismatch ? 'Flagged: Payer VPA mismatch between NPCI and Switch' : 'Flagged for manual investigation',
-        isMatched: false,
-        autoActionable: false
-      };
-    }
+    const isMatched = rule ? rule.status === 'MATCHED' : false;
 
-    const unifiedRecord = {
+    const record = {
       id: npciTxnId,
       rrn,
-      payerVpa: npciPayerVpa !== 'N/A' ? npciPayerVpa : switchPayerVpa,
-      payeeVpa: npci['payee VPA'] || npci.payee_vpa || switchRow?.payee_vpa || mwRow?.PayeeVpa || 'N/A',
-      amount: finalAmt,
+      payerVpa: npci['payer VPA'] || npci.payer_vpa || switchRow?.payer_vpa || 'N/A',
+      payeeVpa: npci['payee VPA'] || npci.payee_vpa || switchRow?.payee_vpa || 'N/A',
+      amount,
       userName: mwRow?.userName || mwRow?.retailerUserName || 'merchant_01',
       npciStatus,
       switchStatus,
       mwStatus,
       walletStatus,
-      ruleId: matchedRule.id,
-      actionRequired: matchedRule.action,
-      state: matchedRule.isMatched ? 'settled' : 'exception',
+      ruleId: rule?.id || 'UNCLASSIFIED',
+      discrepancyReason: rule?.desc || 'Status mismatch across systems',
+      settlementStatus: isMatched ? 'READY_FOR_SETTLEMENT' : 'EXCLUDED_MISMATCH',
       reconciledAt: new Date().toISOString()
     };
 
-    if (matchedRule.isMatched) {
-      matchedList.push(unifiedRecord);
+    if (isMatched) {
+      matchedList.push(record);
     } else {
-      exceptionQueue.push(unifiedRecord);
-      if (matchedRule.autoActionable) {
-        autoActionsExecuted.push({
-          txnId: unifiedRecord.id,
-          ruleId: matchedRule.id,
-          actionTaken: matchedRule.action,
-          executedAt: new Date().toISOString()
-        });
-      }
+      exceptionQueue.push(record);
     }
   });
 
@@ -228,10 +119,10 @@ export function run4WayReconciliation(npciRows, switchRows, mwRows, walletRows, 
     totalProcessed: npciRows.length,
     matchedCount: matchedList.length,
     exceptionCount: exceptionQueue.length,
+    matchRate: npciRows.length > 0 ? ((matchedList.length / npciRows.length) * 100).toFixed(1) + '%' : '0%',
     matchedList,
-    exceptionQueue,
-    autoActionsExecuted,
-    matchRate: npciRows.length > 0 ? ((matchedList.length / npciRows.length) * 100).toFixed(2) + '%' : '0%'
+    exceptionQueue
   };
 }
+
 
