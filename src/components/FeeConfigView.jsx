@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Settings, Save, RotateCcw, Check, Percent, DollarSign, ShieldCheck, Zap, Layers, CreditCard, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Settings, Save, RotateCcw, Check, Percent, ShieldCheck, Zap, CreditCard } from 'lucide-react';
 import { getFeeConfig, saveFeeConfig, resetFeeConfig } from '../utils/feeConfigStore';
 
 const FeeConfigView = () => {
   const [config, setConfig] = useState(getFeeConfig());
   const [savedSuccess, setSavedSuccess] = useState(false);
-  const [sampleTxnAmount, setSampleTxnAmount] = useState(1000000); // ₹1,000,000 for simulation
 
   const handleChange = (field, value) => {
     const numVal = parseFloat(value) || 0;
@@ -24,29 +23,6 @@ const FeeConfigView = () => {
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
   };
-
-  // Live Simulator Calculations
-  const bankShareAmt = (sampleTxnAmount * (config.bankShareRate / 100));
-  const interchangeAmt = (sampleTxnAmount * (config.interchangeRate / 100));
-  const platformAmt = (sampleTxnAmount * (config.platformFeeRate / 100));
-  const switchingAmt = 1000 * config.switchingFeePerTxn; // Assuming 1,000 txns
-  const cgstAmt = switchingAmt * (config.cgstRate / 100);
-  const sgstAmt = switchingAmt * (config.sgstRate / 100);
-  const totalDeductions = bankShareAmt + interchangeAmt + platformAmt + switchingAmt + cgstAmt + sgstAmt;
-  const netSettlement = sampleTxnAmount - totalDeductions;
-
-  // IMPS Chunker Simulation
-  const limit = config.impsPayoutMaxLimit || 500000;
-  const impsChunks = [];
-  let rem = netSettlement;
-  let chunkIdx = 1;
-  while (rem > limit) {
-    const chunkVal = rem - limit;
-    impsChunks.push({ label: `Chunk ${chunkIdx} (Remainder)`, amount: chunkVal, param: 'UPI_SETTL_REM' });
-    rem = limit;
-    chunkIdx++;
-  }
-  impsChunks.push({ label: `Chunk ${chunkIdx} (Max Limit)`, amount: rem, param: 'UPI_SETTL_MAX' });
 
   return (
     <div className="glass-card animate-fade-in" style={{ padding: '36px' }}>
@@ -80,7 +56,7 @@ const FeeConfigView = () => {
       )}
 
       {/* Configuration Inputs Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px', marginBottom: '32px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '24px' }}>
         {/* Card 1: Bank Revenue & Share */}
         <div style={{ background: 'white', padding: '24px', borderRadius: '18px', border: '1px solid var(--border)' }}>
           <h3 style={{ margin: '0 0 16px 0', fontSize: '17px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)' }}>
@@ -252,69 +228,6 @@ const FeeConfigView = () => {
               />
             </div>
             <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '4px', display: 'block' }}>Amounts exceeding this threshold automatically split into remainder + max limit rows (₹500,000 default)</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Live Impact Calculation Simulator */}
-      <div style={{ background: '#0F172A', padding: '28px', borderRadius: '20px', color: 'white' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: '18px', color: '#38BDF8', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Zap size={20} /> Live Calculation Impact Simulator
-            </h3>
-            <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#94A3B8' }}>
-              Simulates real-time fee deductions and IMPS split chunks for your configured settings.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '12px', color: '#94A3B8', fontWeight: '700' }}>Sample Batch Volume:</span>
-            <input 
-              type="number" 
-              value={sampleTxnAmount} 
-              onChange={e => setSampleTxnAmount(parseFloat(e.target.value) || 0)} 
-              className="settings-input" 
-              style={{ width: '140px', padding: '6px 10px', background: '#1E293B', color: 'white', border: '1px solid #334155', fontWeight: '700' }} 
-            />
-          </div>
-        </div>
-
-        {/* Calculation Breakdown Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
-          <div style={{ background: '#1E293B', padding: '16px', borderRadius: '12px' }}>
-            <span style={{ fontSize: '11.5px', color: '#94A3B8', display: 'block', marginBottom: '4px' }}>Bank Share Revenue ({config.bankShareRate}%)</span>
-            <span style={{ fontSize: '18px', fontWeight: '800', color: '#FBBF24' }}>₹{bankShareAmt.toFixed(2)}</span>
-          </div>
-
-          <div style={{ background: '#1E293B', padding: '16px', borderRadius: '12px' }}>
-            <span style={{ fontSize: '11.5px', color: '#94A3B8', display: 'block', marginBottom: '4px' }}>CGST ({config.cgstRate}%) + SGST ({config.sgstRate}%)</span>
-            <span style={{ fontSize: '18px', fontWeight: '800', color: '#F87171' }}>₹{(cgstAmt + sgstAmt).toFixed(2)}</span>
-          </div>
-
-          <div style={{ background: '#1E293B', padding: '16px', borderRadius: '12px' }}>
-            <span style={{ fontSize: '11.5px', color: '#94A3B8', display: 'block', marginBottom: '4px' }}>Total Deductions</span>
-            <span style={{ fontSize: '18px', fontWeight: '800', color: '#EF4444' }}>₹{totalDeductions.toFixed(2)}</span>
-          </div>
-
-          <div style={{ background: '#1E293B', padding: '16px', borderRadius: '12px' }}>
-            <span style={{ fontSize: '11.5px', color: '#94A3B8', display: 'block', marginBottom: '4px' }}>Net Merchant Settlement</span>
-            <span style={{ fontSize: '18px', fontWeight: '800', color: '#4ADE80' }}>₹{netSettlement.toFixed(2)}</span>
-          </div>
-        </div>
-
-        {/* IMPS Split Chunker Result */}
-        <div>
-          <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#38BDF8', display: 'block', marginBottom: '10px' }}>
-            Simulated IMPS Payout Chunks (Max Limit: ₹{limit.toLocaleString()}):
-          </span>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            {impsChunks.map((ch, idx) => (
-              <div key={idx} style={{ background: '#1E293B', border: '1px solid #334155', padding: '10px 16px', borderRadius: '10px', fontSize: '12.5px' }}>
-                <span style={{ color: '#94A3B8' }}>{ch.label} ({ch.param}): </span>
-                <strong style={{ color: '#4ADE80' }}>₹{ch.amount.toFixed(2)}</strong>
-              </div>
-            ))}
           </div>
         </div>
       </div>
