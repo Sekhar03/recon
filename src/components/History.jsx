@@ -1,14 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   History as HistoryIcon, 
-  Search, 
   Download, 
-  FileSpreadsheet, 
-  FileText, 
   CheckCircle2, 
   AlertCircle, 
-  DollarSign, 
-  CreditCard,
   Calendar,
   Clock,
   Tag,
@@ -19,7 +14,6 @@ import {
 } from 'lucide-react';
 import { getStoredJobs } from '../utils/jobHistoryStore';
 import { exportMultiSheetExcel } from '../utils/excelWorkbookExporter';
-import { exportToExcel } from '../utils/excelExporter';
 
 const HistoryLog = () => {
   const [jobs, setJobs] = useState([]);
@@ -51,22 +45,6 @@ const HistoryLog = () => {
     exportMultiSheetExcel([
       { name: 'Mismatched_Transactions', type: 'data', columns: ['Transaction ID', 'RRN', 'Payer VPA', 'Payee VPA', 'Amount', 'NPCI Status', 'Switch Status', 'MW Status', 'Wallet Status', 'Label', 'Notes'], data: job.mismatchedList || [] }
     ], `Mismatched_Transactions_Report_${job.jobId}`);
-  };
-
-  const downloadGefuFlatFile = (job) => {
-    exportGefuExcelWorkbook(job.jobId);
-  };
-
-  const downloadGefuAccounting = (job) => {
-    exportGefuAccountingExcel(job.jobId);
-  };
-
-  const downloadSettlementFile = (job) => {
-    exportToExcel(job.settlementRows || [], `Settlement_File_${job.jobId}`);
-  };
-
-  const downloadPayoutFile = (job) => {
-    exportToExcel(job.payoutRows || [], `Payout_File_${job.jobId}`);
   };
 
   return (
@@ -209,7 +187,7 @@ const HistoryLog = () => {
                       Available Output Downloads for {job.jobId}
                     </h5>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
                       {/* Matched Report */}
                       <button onClick={() => downloadMatchedReport(job)} className="btn btn-outline" style={{ background: 'white', padding: '12px 16px', justifyContent: 'flex-start', textAlign: 'left', borderRadius: '12px' }}>
                         <CheckCircle2 color="var(--success)" size={18} />
@@ -225,42 +203,6 @@ const HistoryLog = () => {
                         <div>
                           <div style={{ fontWeight: '700', fontSize: '13px' }}>Mismatched Transactions Report</div>
                           <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>.XLSX Excel Sheet</div>
-                        </div>
-                      </button>
-
-                      {/* GEFU Text File */}
-                      <button onClick={() => downloadGefuFlatFile(job)} className="btn btn-outline" style={{ background: 'white', padding: '12px 16px', justifyContent: 'flex-start', textAlign: 'left', borderRadius: '12px' }}>
-                        <FileText color="var(--primary)" size={18} />
-                        <div>
-                          <div style={{ fontWeight: '700', fontSize: '13px' }}>GEFU Bank File</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>.TXT Positional Flat File</div>
-                        </div>
-                      </button>
-
-                      {/* GEFU Accounting Ledger */}
-                      <button onClick={() => downloadGefuAccounting(job)} className="btn btn-outline" style={{ background: 'white', padding: '12px 16px', justifyContent: 'flex-start', textAlign: 'left', borderRadius: '12px' }}>
-                        <FileSpreadsheet color="var(--primary)" size={18} />
-                        <div>
-                          <div style={{ fontWeight: '700', fontSize: '13px' }}>GEFU Accounting File</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>.XLSX Internal Ledger</div>
-                        </div>
-                      </button>
-
-                      {/* Settlement File */}
-                      <button onClick={() => downloadSettlementFile(job)} className="btn btn-outline" style={{ background: 'white', padding: '12px 16px', justifyContent: 'flex-start', textAlign: 'left', borderRadius: '12px' }}>
-                        <DollarSign color="var(--primary)" size={18} />
-                        <div>
-                          <div style={{ fontWeight: '700', fontSize: '13px' }}>Settlement File</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>.XLSX 0.2006% Bank Share</div>
-                        </div>
-                      </button>
-
-                      {/* Payout File */}
-                      <button onClick={() => downloadPayoutFile(job)} className="btn btn-outline" style={{ background: 'white', padding: '12px 16px', justifyContent: 'flex-start', textAlign: 'left', borderRadius: '12px' }}>
-                        <CreditCard color="var(--primary)" size={18} />
-                        <div>
-                          <div style={{ fontWeight: '700', fontSize: '13px' }}>IMPS Payout File</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>.XLSX ₹5L Split Chunker</div>
                         </div>
                       </button>
                     </div>
