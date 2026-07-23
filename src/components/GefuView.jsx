@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Download, Tag, Calendar, Clock, ChevronDown, ChevronUp, Copy, Check, Table, ShieldCheck } from 'lucide-react';
 import { getStoredJobs } from '../utils/jobHistoryStore';
-import { exportToExcel } from '../utils/excelExporter';
-import { exportGefuExcelWorkbook } from '../utils/excelWorkbookExporter';
+import { exportGefuExcelWorkbook, exportGefuAccountingExcel } from '../utils/excelWorkbookExporter';
 
 const GefuView = ({ viewMode = 'flat' }) => {
   const [jobs, setJobs] = useState([]);
@@ -29,8 +28,7 @@ const GefuView = ({ viewMode = 'flat' }) => {
   };
 
   const handleDownloadLedger = (job) => {
-    const data = job.gefuAccountingLedger || sampleAccountingRows;
-    exportToExcel(data, `GEFU_Accounting_${job.jobId}`);
+    exportGefuAccountingExcel(job.jobId);
   };
 
   const handleCopyContent = (job) => {

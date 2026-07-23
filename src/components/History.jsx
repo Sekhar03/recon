@@ -52,7 +52,7 @@ const HistoryLog = () => {
   };
 
   const downloadGefuAccounting = (job) => {
-    exportToExcel(job.gefuAccountingLedger || [], `GEFU_Accounting_${job.jobId}`);
+    exportGefuAccountingExcel(job.jobId);
   };
 
   const downloadSettlementFile = (job) => {

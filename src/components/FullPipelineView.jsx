@@ -22,7 +22,7 @@ import {
   Clock
 } from 'lucide-react';
 import axios from 'axios';
-import { exportMultiSheetExcel, exportGefuExcelWorkbook } from '../utils/excelWorkbookExporter';
+import { exportMultiSheetExcel, exportGefuExcelWorkbook, exportGefuAccountingExcel } from '../utils/excelWorkbookExporter';
 import { exportToExcel } from '../utils/excelExporter';
 import { saveJobToHistory } from '../utils/jobHistoryStore';
 
@@ -256,7 +256,7 @@ const FullPipelineView = () => {
 
   const downloadGefuAccounting = () => {
     if (!result) return;
-    exportToExcel(result.gefuAccountingLedger, `GEFU_Accounting_${result.jobId || cycle}`);
+    exportGefuAccountingExcel(result.jobId || cycle);
   };
 
   const downloadSettlementFile = () => {

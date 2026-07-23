@@ -28,6 +28,12 @@ export function exportMultiSheetExcel(sheetsData = [], filename = 'Reconciliatio
    <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
   </Style>
 
+  <Style ss:ID="YellowHeader">
+   <Font ss:Bold="1" ss:Color="#000000"/>
+   <Interior ss:Color="#FFFF00" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+  </Style>
+
   <Style ss:ID="SummaryHeader">
    <Font ss:Bold="1" ss:Color="#1E293B" ss:Size="12"/>
    <Interior ss:Color="#E2E8F0" ss:Pattern="Solid"/>
@@ -40,6 +46,11 @@ export function exportMultiSheetExcel(sheetsData = [], filename = 'Reconciliatio
 
   <Style ss:ID="DataCell">
    <Alignment ss:Vertical="Center"/>
+  </Style>
+
+  <Style ss:ID="HighlightYellow">
+   <Font ss:Bold="1" ss:Color="#000000"/>
+   <Interior ss:Color="#FFFF00" ss:Pattern="Solid"/>
   </Style>
 
   <Style ss:ID="LabelMismatch">
@@ -120,37 +131,22 @@ export function exportMultiSheetExcel(sheetsData = [], filename = 'Reconciliatio
 
 /**
  * Dedicated GEFU 4-Sheet Excel Workbook Exporter
- * Generates GEFU_File_<JobId>.xlsx containing:
- * Sheet 1: Input (Transactions)
- * Sheet 2: Formatter_Working (Fixed-width padded strings)
- * Sheet 3: Output (Header, Concatenated 559-char Messages, Footer)
- * Sheet 4: Field_Formats (Validation Rulebook)
  */
 export function exportGefuExcelWorkbook(jobId = 'JOB-GEFU-20260723') {
   const inputRows = [
     { 'Account Type': '3', 'Account Number': '208100063', 'Branch Code': '8888', 'Txn Code': '1008', 'Txn Date': '30/06/2025', 'Dr / Cr': 'D', 'Value Date': '30/06/2025', 'Txn CCY': '1', 'Amt LCY': '266618.30', 'Amt TCY': '266618.30', 'Rate Con': '1.00', 'Ref No': '0', 'Ref Doc No': '0', 'Transaction Description': 'UPI_NPT_FinalSettledAmt_7C_300625', 'Option': '30', '~~END~~': '~~END~~', 'Issuer Code': '00000', 'Payable Branch': '0000', 'Flag Future dated': 'N', 'Mis Code': '0000000000000000' },
-    { 'Account Type': '3', 'Account Number': '208100064', 'Branch Code': '8888', 'Txn Code': '1408', 'Txn Date': '30/06/2025', 'Dr / Cr': 'C', 'Value Date': '30/06/2025', 'Txn CCY': '1', 'Amt LCY': '266618.30', 'Amt TCY': '266618.30', 'Rate Con': '1.00', 'Ref No': '0', 'Ref Doc No': '0', 'Transaction Description': 'UPI_NPT_FinalSettledAmt_7C_300625', 'Option': '30', '~~END~~': '~~END~~', 'Issuer Code': '00000', 'Payable Branch': '0000', 'Flag Future dated': 'N', 'Mis Code': '0000000000000000' },
-    { 'Account Type': '3', 'Account Number': '208100065', 'Branch Code': '8888', 'Txn Code': '1008', 'Txn Date': '30/06/2025', 'Dr / Cr': 'D', 'Value Date': '30/06/2025', 'Txn CCY': '1', 'Amt LCY': '44.66', 'Amt TCY': '44.66', 'Rate Con': '1.00', 'Ref No': '0', 'Ref Doc No': '0', 'Transaction Description': 'Switching Fees_7C_300625', 'Option': '30', '~~END~~': '~~END~~', 'Issuer Code': '00000', 'Payable Branch': '0000', 'Flag Future dated': 'N', 'Mis Code': '0000000000000000' },
-    { 'Account Type': '3', 'Account Number': '208100066', 'Branch Code': '8888', 'Txn Code': '1008', 'Txn Date': '30/06/2025', 'Dr / Cr': 'D', 'Value Date': '30/06/2025', 'Txn CCY': '1', 'Amt LCY': '8.04', 'Amt TCY': '8.04', 'Rate Con': '1.00', 'Ref No': '0', 'Ref Doc No': '0', 'Transaction Description': 'GST on Switching Fees_7C_300625', 'Option': '30', '~~END~~': '~~END~~', 'Issuer Code': '00000', 'Payable Branch': '0000', 'Flag Future dated': 'N', 'Mis Code': '0000000000000000' }
+    { 'Account Type': '3', 'Account Number': '208100064', 'Branch Code': '8888', 'Txn Code': '1408', 'Txn Date': '30/06/2025', 'Dr / Cr': 'C', 'Value Date': '30/06/2025', 'Txn CCY': '1', 'Amt LCY': '266618.30', 'Amt TCY': '266618.30', 'Rate Con': '1.00', 'Ref No': '0', 'Ref Doc No': '0', 'Transaction Description': 'UPI_NPT_FinalSettledAmt_7C_300625', 'Option': '30', '~~END~~': '~~END~~', 'Issuer Code': '00000', 'Payable Branch': '0000', 'Flag Future dated': 'N', 'Mis Code': '0000000000000000' }
   ];
 
   const outputRows = [
     { 'Record Type': 'Header', 'Length': '9', 'Message': '120250630' },
     { 'Record Type': 'Detail', 'Length': '559', 'Message': '203  40421004588880100820250630D2025063000001000000000446600000000004466000000100000000000000000000000000Switching Fees_7C_300625' },
-    { 'Record Type': 'Detail', 'Length': '559', 'Message': '203  11418000188880140820250630C2025063000001000000000080400000000000804000000100000000000000000000000000GST on Switching Fees_7C_300625' },
-    { 'Record Type': 'Detail', 'Length': '559', 'Message': '203  30211001788880140820250630C2025063000001000000000453340000000000453340000001000000000000000000000000UPI Acquiring - IserveU_7C_300625' },
     { 'Record Type': 'Footer', 'Length': '49', 'Message': '3000000009000001079036217000000014000001079036217' }
   ];
 
   const fieldFormatsRows = [
     { 'Fields': 'Txn Type', 'Sample CASA Value': '1', 'Sample GL Value': '3', 'Validations': 'Must be 1 for CASA and 3 for GL', 'Mandatory': 'Y' },
-    { 'Fields': 'Account Number', 'Sample CASA Value': '501000000794', 'Sample GL Value': '208100011', 'Validations': 'Number only', 'Mandatory': 'Y' },
-    { 'Fields': 'Branch Code', 'Sample CASA Value': '8888', 'Sample GL Value': '8888', 'Validations': 'Number only', 'Mandatory': 'Y' },
-    { 'Fields': 'Txn Code', 'Sample CASA Value': '1008', 'Sample GL Value': '1408', 'Validations': 'Number only', 'Mandatory': 'Y' },
-    { 'Fields': 'Txn Date', 'Sample CASA Value': '22/08/2019', 'Sample GL Value': '22/08/2019', 'Validations': 'Date format must be DD/MM/YYYY', 'Mandatory': 'Y' },
-    { 'Fields': 'Dr / Cr', 'Sample CASA Value': 'D', 'Sample GL Value': 'C', 'Validations': 'Char', 'Mandatory': 'Y' },
-    { 'Fields': 'Value Date', 'Sample CASA Value': '22/08/2019', 'Sample GL Value': '22/08/2019', 'Validations': 'Date format must be DD/MM/YYYY', 'Mandatory': 'Y' },
-    { 'Fields': 'Transaction Description', 'Sample CASA Value': 'BBPS-JME20190815020855', 'Sample GL Value': 'BBPS-JME201908150408', 'Validations': 'Varchar', 'Mandatory': 'Y' }
+    { 'Fields': 'Account Number', 'Sample CASA Value': '501000000794', 'Sample GL Value': '208100011', 'Validations': 'Number only', 'Mandatory': 'Y' }
   ];
 
   exportMultiSheetExcel([
@@ -158,4 +154,92 @@ export function exportGefuExcelWorkbook(jobId = 'JOB-GEFU-20260723') {
     { name: 'Output', type: 'data', data: outputRows },
     { name: 'Field_Formats', type: 'data', data: fieldFormatsRows }
   ], `GEFU_File_${jobId}`);
+}
+
+/**
+ * Dedicated GEFU Accounting File Excel Exporter matching exact screenshot layout
+ */
+export function exportGefuAccountingExcel(jobId = 'JOB-GEFU-20260723') {
+  const columns = ['Account Number', 'Account Name', 'Debit / Credit', 'Amount', 'Remarks', 'Source'];
+
+  const rows = [
+    { 'Account Number': '208100063', 'Account Name': 'RBI Mirror Account', 'Debit / Credit': 'Debit', 'Amount': '265.18', 'Remarks': 'UPI_NPT_FinalSettledAmt_6C_050625', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '208100472', 'Account Name': 'SL-UPI ACQUIRING PAYABLE-MERCHANT SETTLEMENT', 'Debit / Credit': 'Credit', 'Amount': '265.18', 'Remarks': 'UPI_NPT_FinalSettledAmt_6C_050625', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '208100472', 'Account Name': 'SL-UPI ACQUIRING PAYABLE-MERCHANT SETTLEMENT', 'Debit / Credit': 'Debit', 'Amount': '265.18', 'Remarks': 'UPI_NPT_FinalSettledAmt_6C_050625', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '404210045', 'Account Name': 'GC-INTERCHANGE CHARGES-UPI', 'Debit / Credit': 'Debit', 'Amount': '-', 'Remarks': 'Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '114180001', 'Account Name': 'CGST 9% INPUT TAX CREDIT', 'Debit / Credit': 'Debit', 'Amount': '-', 'Remarks': 'GST on Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '114180006', 'Account Name': 'SGST 9% INPUT CREDIT', 'Debit / Credit': 'Debit', 'Amount': '-', 'Remarks': 'GST on Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '404210045', 'Account Name': 'GC-INTERCHANGE CHARGES-UPI', 'Debit / Credit': 'Credit', 'Amount': '-', 'Remarks': 'Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '114180001', 'Account Name': 'CGST 9% INPUT TAX CREDIT', 'Debit / Credit': 'Credit', 'Amount': '-', 'Remarks': 'GST on Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '114180006', 'Account Name': 'SGST 9% INPUT CREDIT', 'Debit / Credit': 'Credit', 'Amount': '-', 'Remarks': 'GST on Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '302110017', 'Account Name': 'COMM-UPI', 'Debit / Credit': 'Debit', 'Amount': '-', 'Remarks': 'Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '208080061', 'Account Name': 'SL-CENTRAL GST PAYABLE', 'Debit / Credit': 'Debit', 'Amount': '-', 'Remarks': 'GST on Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '208080062', 'Account Name': 'SL-STATE GST PAYABLE', 'Debit / Credit': 'Debit', 'Amount': '-', 'Remarks': 'GST on Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '302110017', 'Account Name': 'COMM-UPI', 'Debit / Credit': 'Credit', 'Amount': '-', 'Remarks': 'Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '208080061', 'Account Name': 'SL-CENTRAL GST PAYABLE', 'Debit / Credit': 'Credit', 'Amount': '-', 'Remarks': 'GST on Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '208080062', 'Account Name': 'SL-STATE GST PAYABLE', 'Debit / Credit': 'Credit', 'Amount': '-', 'Remarks': 'GST on Switching Fees', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '302110017', 'Account Name': 'COMM-UPI', 'Debit / Credit': 'Credit', 'Amount': '0.45', 'Remarks': 'UPI Acquiring - IserveU_6C_050625', 'Source': '17 bps' },
+    { 'Account Number': '208080061', 'Account Name': 'SL-CENTRAL GST PAYABLE', 'Debit / Credit': 'Credit', 'Amount': '0.04', 'Remarks': 'UPI Acquiring GST on Fees_6C_050625', 'Source': '' },
+    { 'Account Number': '208080062', 'Account Name': 'SL-STATE GST PAYABLE', 'Debit / Credit': 'Credit', 'Amount': '0.04', 'Remarks': 'UPI Acquiring GST on Fees_6C_050625', 'Source': '' },
+    { 'Account Number': '502003805716', 'Account Name': 'ISERVEU TECHNOLOGY PRIVATE LIMITED', 'Debit / Credit': 'Credit', 'Amount': '-', 'Remarks': '', 'Source': '' },
+    { 'Account Number': '502003806105', 'Account Name': 'NSDL PAYMENTS BANK LIMITED', 'Debit / Credit': 'Credit', 'Amount': '264.65', 'Remarks': 'UPI_NPT_FinalSettledAmt_6C_050625', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '502003805716', 'Account Name': 'ISERVEU TECHNOLOGY PRIVATE LIMITED', 'Debit / Credit': 'Debit', 'Amount': '-', 'Remarks': 'Dispute Adjustment Amount', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '502003805716', 'Account Name': 'ISERVEU TECHNOLOGY PRIVATE LIMITED', 'Debit / Credit': 'Credit', 'Amount': '-', 'Remarks': 'Representement Adjustment Amount', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '******', 'Account Name': 'Fees Account', 'Debit / Credit': 'Credit/Debit', 'Amount': '-', 'Remarks': 'Adjusted Fee', 'Source': 'NPCI NTSL' },
+    { 'Account Number': '******', 'Account Name': 'GST Account', 'Debit / Credit': 'Credit/Debit', 'Amount': '-', 'Remarks': 'Adjusted Fee with Tax', 'Source': 'NPCI NTSL' }
+  ];
+
+  let xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="YellowHeader">
+   <Font ss:Bold="1" ss:Color="#000000"/>
+   <Interior ss:Color="#FFFF00" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+  </Style>
+  <Style ss:ID="DataCell">
+   <Alignment ss:Vertical="Center"/>
+  </Style>
+  <Style ss:ID="HighlightYellow">
+   <Font ss:Bold="1" ss:Color="#000000"/>
+   <Interior ss:Color="#FFFF00" ss:Pattern="Solid"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="GEFU_Accounting_Ledger">
+  <Table>
+   <Row>
+`;
+
+  columns.forEach(col => {
+    xml += `    <Cell ss:StyleID="YellowHeader"><Data ss:Type="String">${escapeXml(col)}</Data></Cell>\n`;
+  });
+  xml += `   </Row>\n`;
+
+  rows.forEach(row => {
+    xml += `   <Row>\n`;
+    columns.forEach(col => {
+      let val = row[col] || '';
+      let style = 'DataCell';
+      if (row['Account Number'] === '502003806105' && col === 'Amount') {
+        style = 'HighlightYellow';
+      }
+      xml += `    <Cell ss:StyleID="${style}"><Data ss:Type="String">${escapeXml(val)}</Data></Cell>\n`;
+    });
+    xml += `   </Row>\n`;
+  });
+
+  xml += `  </Table>\n </Worksheet>\n</Workbook>`;
+
+  const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `GEFU_Accounting_${jobId}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
