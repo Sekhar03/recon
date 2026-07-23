@@ -1,279 +1,165 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, CheckCircle2, AlertOctagon, Code, Database, ShieldCheck, Copy, Check } from 'lucide-react';
-import axios from 'axios';
+import { FileText, Download, CheckCircle2, Database, Tag, Calendar, Clock, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+import { getStoredJobs } from '../utils/jobHistoryStore';
 import { exportToExcel } from '../utils/excelExporter';
 
-const GefuView = ({ jobId }) => {
-  const [activeSheet, setActiveSheet] = useState('Output');
-  const [gefuData, setGefuData] = useState(null);
-  const [copied, setCopied] = useState(false);
-  const [ooxmlStatus, setOoxmlStatus] = useState(null);
+const GefuView = ({ viewMode = 'flat' }) => {
+  const [jobs, setJobs] = useState([]);
+  const [expandedJobId, setExpandedJobId] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
-    // Fetch GEFU data
-    axios.get(`/api/v1/gefu/${jobId || 'default'}`)
-      .then(res => setGefuData(res.data))
-      .catch(() => {
-        // Fallback default mock
-        setGefuData({
-          processDate: new Date().toISOString().split('T')[0].replace(/-/g, ''),
-          controlTotals: { noOfDr: 3, amtOfDr: '1246744.60', noOfCr: 2, amtOfCr: '1246744.60', verified: true },
-          gefuFlatFileContent: `120260723\n201990812345678901200120140820260723CR202607230001243031400001243031400000010020260723001  20260723001  UPI Net Settlement Credit to Pool    BENEF001        NSDL PAYMENTS BANK                                                                                                                      ~~END~~\n201990812345678901300120100820260723DR20260723000000012450000000001245000000010020260723002  20260723002  NPCI Switching Fee Debit             BENEF001        NSDL PAYMENTS BANK                                                                                                                      ~~END~~\n3000003000124674460000002000124674460`,
-          accountingLedger: [
-            { accountNumber: '9908123456789012', accountName: 'NPCI UPI Settlement Pool A/C', drCr: 'CR', amount: 1243031.40, remarks: 'UPI Net Settlement Credit' },
-            { accountNumber: '9908123456789013', accountName: 'NPCI Switching Fee Expense A/C', drCr: 'DR', amount: 1245.00, remarks: 'NPCI Switching Fee Debit' },
-            { accountNumber: '9908123456789014', accountName: 'Input GST Receivable A/C', drCr: 'DR', amount: 224.10, remarks: 'GST on NPCI Switching Fee' },
-            { accountNumber: '9908123456789015', accountName: 'Bank UPI Revenue A/C', drCr: 'CR', amount: 2497.47, remarks: 'Bank Share @ 0.2006%' }
-          ]
-        });
-      });
+    const loadedJobs = getStoredJobs();
+    setJobs(loadedJobs);
+    if (loadedJobs.length > 0) {
+      setExpandedJobId(loadedJobs[0].jobId);
+    }
+  }, []);
 
-    // Check OOXML format status
-    axios.post('/api/v1/files/validate-ooxml', { fileName: 'NTSL_Daily_Report.xls' })
-      .then(res => setOoxmlStatus(res.data));
-  }, [jobId]);
-
-  const handleDownloadFlatFile = () => {
-    if (!gefuData) return;
-    const blob = new Blob([gefuData.gefuFlatFileContent], { type: 'text/plain;charset=utf-8' });
+  const handleDownloadFlatFile = (job) => {
+    const content = job.gefuFlatFileContent || 'HDR20260723NSDL0000001\nDTL501001234DR00000002500000PAYMENT\nFTR00000100000002500000';
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `GEFU_BANK_FILE_${gefuData.processDate || '20260723'}.txt`;
+    link.download = `GEFU_${job.jobId}.txt`;
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
   };
 
-  const handleDownloadLedger = () => {
-    if (!gefuData || !gefuData.accountingLedger) return;
-    exportToExcel(gefuData.accountingLedger, `GEFU_Accounting_Ledger_${gefuData.processDate}`);
+  const handleDownloadLedger = (job) => {
+    exportToExcel(job.gefuAccountingLedger || [], `GEFU_Accounting_${job.jobId}`);
   };
 
-  const handleCopy = () => {
-    if (gefuData?.gefuFlatFileContent) {
-      navigator.clipboard.writeText(gefuData.gefuFlatFileContent);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+  const handleCopyContent = (job) => {
+    const content = job.gefuFlatFileContent || '';
+    navigator.clipboard.writeText(content);
+    setCopiedId(job.jobId);
+    setTimeout(() => setCopiedId(null), 2000);
   };
+
+  const isFlatMode = viewMode === 'flat';
 
   return (
-    <div className="glass-card animate-fade-in" style={{ padding: '32px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <h2 style={{ fontSize: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <FileText color="var(--primary)" size={24} />
-            NTSL → GEFU Fixed-Width Bank File Generator
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px' }}>
-            4-sheet pipeline emitting positional fixed-width flat files (`Header 1`, `Detail 2`, `Footer 3`) with pre-flight control total verification.
-          </p>
-        </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button onClick={handleDownloadLedger} className="btn btn-outline">
-            <Database size={16} /> Export Accounting Ledger
-          </button>
-          <button onClick={handleDownloadFlatFile} className="btn btn-primary">
-            <Download size={16} /> Download GEFU Flat File (.txt)
-          </button>
-        </div>
+    <div className="glass-card animate-fade-in" style={{ padding: '36px' }}>
+      {/* Header */}
+      <div style={{ marginBottom: '28px' }}>
+        <h2 style={{ fontSize: '26px', margin: 0, fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <FileText color="var(--primary)" size={26} />
+          {isFlatMode ? 'GEFU File (Positional Bank Flat Files)' : 'GEFU Accounting File (Internal Audit Ledger)'}
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14.5px' }}>
+          {isFlatMode 
+            ? 'Positional 27-field fixed-width bank flat files generated per reconciliation job with Header (1), Detail (2), and Footer (3) control totals.'
+            : 'Human-readable internal accounting ledger entries generated per reconciliation job.'}
+        </p>
       </div>
 
-      {/* OOXML Format Detector Banner */}
-      {ooxmlStatus && ooxmlStatus.isMismatch && (
-        <div style={{ 
-          background: 'rgba(245, 158, 11, 0.1)', 
-          border: '1px solid var(--warning)', 
-          borderRadius: '16px', 
-          padding: '16px 20px', 
-          marginBottom: '28px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '14px'
-        }}>
-          <AlertOctagon color="var(--warning)" size={22} />
-          <div>
-            <h4 style={{ margin: 0, color: 'var(--warning)', fontSize: '14px' }}>OOXML Format Autodetected</h4>
-            <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
-              Source file <code style={{ color: 'var(--primary)' }}>{ooxmlStatus.fileName}</code> was uploaded with <code style={{ color: 'var(--primary)' }}>.xls</code> extension but contains real OOXML (<code style={{ color: 'var(--primary)' }}>.xlsx</code>) binary header. Parser handled format automatically.
-            </p>
+      {/* Detailed Tabular Jobs List */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {jobs.length === 0 ? (
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)', background: 'var(--bg-hover)', borderRadius: '16px' }}>
+            No reconciliation jobs found. Run a reconciliation on the <strong>UPI Reconciliation</strong> module to generate GEFU files.
           </div>
-        </div>
-      )}
+        ) : (
+          jobs.map(job => {
+            const isExpanded = expandedJobId === job.jobId;
 
-      {/* Control Totals Validation Banner */}
-      <div style={{ 
-        background: 'var(--bg-hover)', 
-        borderRadius: '16px', 
-        padding: '20px', 
-        marginBottom: '32px',
-        border: '1px solid var(--border)',
-        display: 'flex',
-        justify: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '20px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '40px', height: '40px', background: 'var(--success-glow)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--success)' }}>
-            <ShieldCheck size={22} />
-          </div>
-          <div>
-            <h4 style={{ margin: 0, fontSize: '15px' }}>Bank Control Totals Validation</h4>
-            <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>Header '1', Detail '2', Footer '3' records verified before bank drop</p>
-          </div>
-        </div>
+            return (
+              <div key={job.jobId} style={{ background: 'white', borderRadius: '18px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+                {/* Job Summary Row */}
+                <div 
+                  onClick={() => setExpandedJobId(isExpanded ? null : job.jobId)}
+                  style={{ padding: '20px 24px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', background: isExpanded ? 'var(--bg-hover)' : 'white' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800' }}>
+                      <Tag size={20} />
+                    </div>
 
-        <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-          <div style={{ textAlign: 'center' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Debits (Count / Amt)</span>
-            <p style={{ margin: 0, fontWeight: '700', fontSize: '14px' }}>
-              {gefuData?.controlTotals?.noOfDr} Dr / ₹{gefuData?.controlTotals?.amtOfDr}
-            </p>
-          </div>
-          <div style={{ width: '1px', height: '30px', background: 'var(--border)' }} />
-          <div style={{ textAlign: 'center' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Credits (Count / Amt)</span>
-            <p style={{ margin: 0, fontWeight: '700', fontSize: '14px', color: 'var(--success)' }}>
-              {gefuData?.controlTotals?.noOfCr} Cr / ₹{gefuData?.controlTotals?.amtOfCr}
-            </p>
-          </div>
-          <span style={{ background: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)', padding: '6px 14px', borderRadius: '20px', fontWeight: '700', fontSize: '12px' }}>
-            ✓ Bank Pass Gate
-          </span>
-        </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <h4 style={{ margin: 0, fontSize: '17px', fontFamily: 'monospace', fontWeight: '800' }}>{job.jobId}</h4>
+                        <span className="badge badge-success" style={{ fontSize: '11px' }}>✓ {job.status}</span>
+                      </div>
+                      <p style={{ margin: '4px 0 0 0', fontSize: '12.5px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <span><Calendar size={13} style={{ verticalAlign: 'text-bottom' }} /> {job.date} ({job.time})</span>
+                        <span><Clock size={13} style={{ verticalAlign: 'text-bottom' }} /> {job.cycle}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    {isFlatMode ? (
+                      <button onClick={(e) => { e.stopPropagation(); handleDownloadFlatFile(job); }} className="btn btn-primary" style={{ padding: '10px 18px', fontSize: '13px', fontWeight: '700' }}>
+                        <Download size={15} /> Download GEFU_File.txt
+                      </button>
+                    ) : (
+                      <button onClick={(e) => { e.stopPropagation(); handleDownloadLedger(job); }} className="btn btn-primary" style={{ padding: '10px 18px', fontSize: '13px', fontWeight: '700' }}>
+                        <Download size={15} /> Download GEFU_Accounting.xlsx
+                      </button>
+                    )}
+
+                    <button className="btn btn-outline" style={{ padding: '8px 12px', fontSize: '12px' }}>
+                      {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      {isExpanded ? 'Hide Data' : 'View Tabular File'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Expanded Detailed Tabular File View */}
+                {isExpanded && (
+                  <div style={{ padding: '24px', borderTop: '1px solid var(--border)', background: '#F8FAFC' }}>
+                    {isFlatMode ? (
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase' }}>
+                            Positional 27-Field Text File Contents for {job.jobId}
+                          </span>
+                          <button onClick={() => handleCopyContent(job)} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '12px' }}>
+                            {copiedId === job.jobId ? <Check size={14} color="var(--success)" /> : <Copy size={14} />}
+                            {copiedId === job.jobId ? 'Copied!' : 'Copy Raw Text'}
+                          </button>
+                        </div>
+                        <pre style={{ background: '#0F172A', color: '#38BDF8', padding: '18px', borderRadius: '12px', fontSize: '12px', fontFamily: 'monospace', overflowX: 'auto', margin: 0, whiteSpace: 'pre-wrap' }}>
+                          {job.gefuFlatFileContent || '120260723\n201990812345678901200120140820260723CR202607230001243031400001243031400000010020260723001  20260723001  UPI Net Settlement Credit to Pool    BENEF001        NSDL PAYMENTS BANK                                                                                                                      ~~END~~\n3000003000124674460000002000124674460'}
+                        </pre>
+                      </div>
+                    ) : (
+                      <div>
+                        <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase', display: 'block', marginBottom: '12px' }}>
+                          Internal Audit Ledger Entries for {job.jobId}
+                        </span>
+                        <table className="data-table">
+                          <thead>
+                            <tr>
+                              <th>Account Number</th>
+                              <th>Account Name / Remarks</th>
+                              <th>Dr / Cr</th>
+                              <th>Amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(job.gefuAccountingLedger || []).map((row, idx) => (
+                              <tr key={idx}>
+                                <td style={{ fontWeight: '700', fontFamily: 'monospace' }}>{row['Account Number'] || row.accountNumber}</td>
+                                <td>{row['Narration'] || row.accountName || row.remarks}</td>
+                                <td><span className={`badge ${row['Dr/Cr'] === 'DR' ? 'badge-warning' : 'badge-success'}`}>{row['Dr/Cr'] || row.drCr}</span></td>
+                                <td style={{ fontWeight: '700' }}>₹{parseFloat(row.Amount || row.amount || 0).toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
-
-      {/* 4-Sheet Tab Navigation */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border)', marginBottom: '24px' }}>
-        {['Output', 'Input', 'Formatter_Working', 'Field_Formats'].map((sheet) => (
-          <button
-            key={sheet}
-            style={{
-              padding: '12px 20px',
-              border: 'none',
-              background: 'none',
-              borderBottom: activeSheet === sheet ? '3px solid var(--primary)' : '3px solid transparent',
-              color: activeSheet === sheet ? 'var(--primary)' : 'var(--text-secondary)',
-              fontWeight: activeSheet === sheet ? '700' : '500',
-              cursor: 'pointer',
-              fontSize: '14px'
-            }}
-            onClick={() => setActiveSheet(sheet)}
-          >
-            {sheet === 'Output' && 'Output Sheet (Flat File)'}
-            {sheet === 'Input' && 'Input Sheet (Staging Ledger)'}
-            {sheet === 'Formatter_Working' && 'Formatter_Working Sheet'}
-            {sheet === 'Field_Formats' && 'Field_Formats Spec'}
-          </button>
-        ))}
-      </div>
-
-      {/* Sheet Content Views */}
-      {activeSheet === 'Output' && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-              Actual fixed-width flat file delivered to bank (Header 1, Detail 2, Footer 3):
-            </p>
-            <button onClick={handleCopy} className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '12px' }}>
-              {copied ? <Check size={14} color="var(--success)" /> : <Copy size={14} />}
-              {copied ? 'Copied' : 'Copy Output Text'}
-            </button>
-          </div>
-          <pre style={{ 
-            background: 'var(--bg-main)', 
-            color: '#a5f3fc', 
-            padding: '20px', 
-            borderRadius: '16px', 
-            overflowX: 'auto',
-            fontFamily: 'monospace',
-            fontSize: '12px',
-            lineHeight: '1.8',
-            border: '1px solid var(--border)'
-          }}>
-            {gefuData?.gefuFlatFileContent || 'Generating Output flat file...'}
-          </pre>
-        </div>
-      )}
-
-      {activeSheet === 'Input' && (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)', textAlign: 'left', fontSize: '12px' }}>
-                <th style={{ padding: '12px' }}>Account Number</th>
-                <th style={{ padding: '12px' }}>Account Name</th>
-                <th style={{ padding: '12px' }}>Branch</th>
-                <th style={{ padding: '12px' }}>Type (Dr/Cr)</th>
-                <th style={{ padding: '12px' }}>Amount (₹)</th>
-                <th style={{ padding: '12px' }}>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              {gefuData?.accountingLedger?.map((row, idx) => (
-                <tr key={idx} style={{ borderBottom: '1px solid var(--border)', fontSize: '14px' }}>
-                  <td style={{ padding: '12px', fontFamily: 'monospace' }}>{row.accountNumber}</td>
-                  <td style={{ padding: '12px', fontWeight: '600' }}>{row.accountName}</td>
-                  <td style={{ padding: '12px' }}>0012</td>
-                  <td style={{ padding: '12px', color: row.drCr === 'CR' ? 'var(--success)' : 'var(--danger)', fontWeight: '700' }}>{row.drCr}</td>
-                  <td style={{ padding: '12px', fontWeight: '700' }}>₹{parseFloat(row.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
-                  <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>{row.remarks}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {activeSheet === 'Formatter_Working' && (
-        <div style={{ padding: '16px', background: 'var(--bg-hover)', borderRadius: '16px' }}>
-          <h4 style={{ marginTop: 0 }}>Exact Fixed-Width Field Spec Evaluator</h4>
-          <ul style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.8' }}>
-            <li><code>Account Type</code>: 2 chars, zero-padded</li>
-            <li><code>Account Number</code>: 16 chars, space-padded, right-aligned</li>
-            <li><code>Txn Code</code>: 5 chars, zero-padded (<code>01008</code> if Dr, <code>01408</code> if Cr)</li>
-            <li><code>Amt LCY / Amt TCY</code>: Amount × 100 (paise, no decimal point), 14 digits zero-padded</li>
-            <li><code>Ref No</code>: 12 digits zero-padded</li>
-            <li><code>Inlined Sentinel</code>: <code>~~END~~</code> appended at terminal position</li>
-          </ul>
-        </div>
-      )}
-
-      {activeSheet === 'Field_Formats' && (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: 'var(--bg-hover)', color: 'var(--text-secondary)', textAlign: 'left', fontSize: '12px' }}>
-                <th style={{ padding: '12px' }}>Field Name</th>
-                <th style={{ padding: '12px' }}>Width</th>
-                <th style={{ padding: '12px' }}>Padding</th>
-                <th style={{ padding: '12px' }}>Alignment</th>
-                <th style={{ padding: '12px' }}>Sample CASA / GL Format</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { field: 'Account Type', width: 2, pad: '0', align: 'Right', sample: '01' },
-                { field: 'Account Number', width: 16, pad: 'Space', align: 'Right', sample: '9908123456789012' },
-                { field: 'Branch Code', width: 4, pad: '0', align: 'Right', sample: '0012' },
-                { field: 'Txn Code', width: 5, pad: '0', align: 'Right', sample: '01008 (Dr) / 01408 (Cr)' },
-                { field: 'Txn / Value Date', width: 8, pad: '0', align: 'Right', sample: 'YYYYMMDD' },
-                { field: 'Amount LCY / TCY', width: 14, pad: '0 (Paise)', align: 'Right', sample: '00000124303140' },
-                { field: 'Transaction Description', width: 40, pad: 'Space', align: 'Left', sample: 'UPI Net Settlement Credit' },
-                { field: 'End Sentinel', width: 7, pad: 'Literal', align: 'Exact', sample: '~~END~~' }
-              ].map((f, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid var(--border)', fontSize: '13px' }}>
-                  <td style={{ padding: '12px', fontWeight: '600' }}>{f.field}</td>
-                  <td style={{ padding: '12px' }}>{f.width} chars</td>
-                  <td style={{ padding: '12px' }}>{f.pad}</td>
-                  <td style={{ padding: '12px' }}>{f.align}</td>
-                  <td style={{ padding: '12px', fontFamily: 'monospace', color: 'var(--primary)' }}>{f.sample}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
   );
 };
