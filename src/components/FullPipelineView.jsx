@@ -345,23 +345,137 @@ const FullPipelineView = () => {
         {currentStep === 1 && (
           <div>
             <h3 style={{ margin: '0 0 8px 0', fontSize: '18px' }}>Step 1: Select Reconciliation Cycle</h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>Choose the target settlement cycle and business date to reconcile.</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+              Choose the target Internal Settlement Cycle or specific NPCI Sub-Cycle (1–10) to reconcile.
+            </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', maxWidth: '600px', marginBottom: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '24px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>Business Date:</label>
                 <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="settings-input" style={{ width: '100%', padding: '10px' }} />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>Reconciliation Cycle:</label>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>Settlement Cycle:</label>
                 <select value={cycle} onChange={e => setCycle(e.target.value)} className="settings-input" style={{ width: '100%', padding: '10px', fontWeight: '700' }}>
                   <option value="Cycle_1">Cycle 1 (09:30 AM Cut-off)</option>
                   <option value="Cycle_2">Cycle 2 (03:30 PM Cut-off)</option>
                   <option value="Cycle_3">Cycle 3 (09:30 PM Cut-off)</option>
-                  <option value="Daily_T1">Daily T+1 Summary</option>
                 </select>
               </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>NPCI Sub-Cycle (Optional Filter):</label>
+                <select className="settings-input" style={{ width: '100%', padding: '10px', fontWeight: '700' }} onChange={(e) => {
+                  const val = e.target.value;
+                  if (['1','2','3','9','10'].includes(val)) setCycle('Cycle_1');
+                  else if (['4','5','6'].includes(val)) setCycle('Cycle_2');
+                  else if (['7','8'].includes(val)) setCycle('Cycle_3');
+                }}>
+                  <option value="">All Sub-Cycles in {cycle.replace('_', ' ')}</option>
+                  <option value="1">NPCI Cycle 1 (21.00 - 00.00 | T+1 | 09.30 AM)</option>
+                  <option value="2">NPCI Cycle 2 (00.00 - 05.00 | T Day | 09.30 AM)</option>
+                  <option value="3">NPCI Cycle 3 (05.00 - 07.00 | T Day | 09.30 AM)</option>
+                  <option value="4">NPCI Cycle 4 (07.00 - 09.00 | T Day | 03.30 PM)</option>
+                  <option value="5">NPCI Cycle 5 (09.00 - 11.00 | T Day | 03.30 PM)</option>
+                  <option value="6">NPCI Cycle 6 (11.00 - 13.00 | T Day | 03.30 PM)</option>
+                  <option value="7">NPCI Cycle 7 (13.00 - 15.00 | T Day | 09.30 PM)</option>
+                  <option value="8">NPCI Cycle 8 (15.00 - 17.00 | T Day | 09.30 PM)</option>
+                  <option value="9">NPCI Cycle 9 (17.00 - 19.00 | T+1 | 09.30 AM)</option>
+                  <option value="10">NPCI Cycle 10 (19.00 - 21.00 | T+1 | 09.30 AM)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* NPCI Sub-Cycle Mapping Reference Table */}
+            <div style={{ background: 'white', borderRadius: '14px', border: '1px solid var(--border)', padding: '16px', marginBottom: '24px' }}>
+              <span style={{ fontSize: '12px', fontWeight: '800', textTransform: 'uppercase', color: 'var(--primary)', display: 'block', marginBottom: '10px' }}>
+                NPCI Sub-Cycle to Internal Settlement Cycle Reference Mapping
+              </span>
+              
+              <table className="data-table" style={{ fontSize: '12px' }}>
+                <thead>
+                  <tr>
+                    <th>NPCI Cycle No</th>
+                    <th>Settlement Cycle</th>
+                    <th>Duration</th>
+                    <th>Settlement On</th>
+                    <th>GEFU Processing Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style={{ background: cycle === 'Cycle_1' ? 'rgba(37,99,235,0.06)' : 'transparent' }}>
+                    <td style={{ fontWeight: '700' }}>1</td>
+                    <td><span className="badge badge-primary">Cycle 1</span></td>
+                    <td>21.00 to 00.00</td>
+                    <td>T+1</td>
+                    <td style={{ fontWeight: '700', color: 'var(--primary)' }}>09.30 AM</td>
+                  </tr>
+                  <tr style={{ background: cycle === 'Cycle_1' ? 'rgba(37,99,235,0.06)' : 'transparent' }}>
+                    <td style={{ fontWeight: '700' }}>2</td>
+                    <td><span className="badge badge-primary">Cycle 1</span></td>
+                    <td>00.00 to 05.00</td>
+                    <td>T Day</td>
+                    <td style={{ fontWeight: '700', color: 'var(--primary)' }}>09.30 AM</td>
+                  </tr>
+                  <tr style={{ background: cycle === 'Cycle_1' ? 'rgba(37,99,235,0.06)' : 'transparent' }}>
+                    <td style={{ fontWeight: '700' }}>3</td>
+                    <td><span className="badge badge-primary">Cycle 1</span></td>
+                    <td>05.00 to 07.00</td>
+                    <td>T Day</td>
+                    <td style={{ fontWeight: '700', color: 'var(--primary)' }}>09.30 AM</td>
+                  </tr>
+                  <tr style={{ background: cycle === 'Cycle_2' ? 'rgba(37,99,235,0.06)' : 'transparent' }}>
+                    <td style={{ fontWeight: '700' }}>4</td>
+                    <td><span className="badge badge-success">Cycle 2</span></td>
+                    <td>07.00 to 09.00</td>
+                    <td>T Day</td>
+                    <td style={{ fontWeight: '700', color: 'var(--success)' }}>03.30 PM</td>
+                  </tr>
+                  <tr style={{ background: cycle === 'Cycle_2' ? 'rgba(37,99,235,0.06)' : 'transparent' }}>
+                    <td style={{ fontWeight: '700' }}>5</td>
+                    <td><span className="badge badge-success">Cycle 2</span></td>
+                    <td>09.00 to 11.00</td>
+                    <td>T Day</td>
+                    <td style={{ fontWeight: '700', color: 'var(--success)' }}>03.30 PM</td>
+                  </tr>
+                  <tr style={{ background: cycle === 'Cycle_2' ? 'rgba(37,99,235,0.06)' : 'transparent' }}>
+                    <td style={{ fontWeight: '700' }}>6</td>
+                    <td><span className="badge badge-success">Cycle 2</span></td>
+                    <td>11.00 to 13.00</td>
+                    <td>T Day</td>
+                    <td style={{ fontWeight: '700', color: 'var(--success)' }}>03.30 PM</td>
+                  </tr>
+                  <tr style={{ background: cycle === 'Cycle_3' ? 'rgba(37,99,235,0.06)' : 'transparent' }}>
+                    <td style={{ fontWeight: '700' }}>7</td>
+                    <td><span className="badge badge-warning">Cycle 3</span></td>
+                    <td>13.00 to 15.00</td>
+                    <td>T Day</td>
+                    <td style={{ fontWeight: '700', color: 'var(--warning)' }}>09.30 PM</td>
+                  </tr>
+                  <tr style={{ background: cycle === 'Cycle_3' ? 'rgba(37,99,235,0.06)' : 'transparent' }}>
+                    <td style={{ fontWeight: '700' }}>8</td>
+                    <td><span className="badge badge-warning">Cycle 3</span></td>
+                    <td>15.00 to 17.00</td>
+                    <td>T Day</td>
+                    <td style={{ fontWeight: '700', color: 'var(--warning)' }}>09.30 PM</td>
+                  </tr>
+                  <tr style={{ background: cycle === 'Cycle_1' ? 'rgba(37,99,235,0.06)' : 'transparent' }}>
+                    <td style={{ fontWeight: '700' }}>9</td>
+                    <td><span className="badge badge-primary">Cycle 1</span></td>
+                    <td>17.00 to 19.00</td>
+                    <td>T+1</td>
+                    <td style={{ fontWeight: '700', color: 'var(--primary)' }}>09.30 AM</td>
+                  </tr>
+                  <tr style={{ background: cycle === 'Cycle_1' ? 'rgba(37,99,235,0.06)' : 'transparent' }}>
+                    <td style={{ fontWeight: '700' }}>10</td>
+                    <td><span className="badge badge-primary">Cycle 1</span></td>
+                    <td>19.00 to 21.00</td>
+                    <td>T+1</td>
+                    <td style={{ fontWeight: '700', color: 'var(--primary)' }}>09.30 AM</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
             <button onClick={handleNextStep} className="btn btn-primary" style={{ padding: '12px 28px', fontWeight: '700' }}>
