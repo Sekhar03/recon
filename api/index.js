@@ -146,8 +146,110 @@ app.post('/api/v1/module-c/run', (req, res) => {
     }
   }
 
-  const result = runModuleCPayoutRecon(samplePayout, sampleMis, sampleStmt);
-  res.json({ cycle, ...result });
+// Unified Full Pipeline Endpoint: 6 Inputs -> 6 Outputs
+app.post('/api/v1/full-pipeline/run', (req, res) => {
+  const { 
+    ntslRows = [], 
+    npciRows = [], 
+    switchRows = [], 
+    mwRows = [], 
+    walletRows = [], 
+    commissionRows = [], 
+    cycle = 'Cycle_1' 
+  } = req.body;
+
+  let sampleNpci = npciRows;
+  let sampleSwitch = switchRows;
+  let sampleMw = mwRows;
+  let sampleWallet = walletRows;
+  let sampleComm = commissionRows;
+
+  if (sampleNpci.length === 0) {
+    const merchants = ['merchant_01', 'merchant_02', 'merchant_03'];
+    for (let i = 1; i <= 300; i++) {
+      const txnId = `TXN_FULL_${i}`;
+      const rrn = `612345${String(i).padStart(6, '0')}`;
+      const isMismatch = i % 20 === 0;
+      const merchant = merchants[i % merchants.length];
+
+      sampleNpci.push({
+        'TXN ID': txnId,
+        'RRN': rrn,
+        'SETTLEMENT AMOUNT': 250000,
+        'RESPONSE CODE': isMismatch && i % 40 === 0 ? 'PENDING' : '00',
+        'payer VPA': `user${i}@upi`,
+        'payee VPA': `${merchant}@iserveu`
+      });
+
+      sampleSwitch.push({
+        switch_txn_id: txnId,
+        client_ref_id: `MW_${txnId}`,
+        rrn,
+        amount: 2500.00,
+        status: isMismatch && i % 60 === 0 ? 'FAILED' : 'SUCCESS',
+        payer_vpa: `user${i}@upi`
+      });
+
+      sampleMw.push({
+        Id: `MW_${txnId}`,
+        amountTransacted: 2500.00,
+        status: isMismatch && i % 20 === 0 ? 'IN_PROGRESS' : 'SUCCESS',
+        userName: merchant
+      });
+
+      sampleWallet.push({
+        relationalId: `MW_${txnId}`,
+        amountTransacted: 2500.00,
+        status: 'SUCCESS'
+      });
+
+      if (!isMismatch) {
+        sampleComm.push({
+          relationalId: `MW_${txnId}`,
+          relationalAmount: 2500.00,
+          amountTransacted: 3.75,
+          userName: merchant,
+          tds: 0.38,
+          gst: 0.60
+        });
+      }
+    }
+  }
+
+  // 1. Run 4-Way Transaction Recon
+  const modAResult = runModuleATransactionRecon(sampleNpci, sampleSwitch, sampleMw, sampleWallet);
+
+  // 2. Run Commission Recon
+  const modBResult = runModuleBCommissionRecon(modAResult.matchedList, sampleComm);
+
+  // 3. Generate GEFU File & GEFU Accounting Ledger from NTSL baseline
+  const grossSettlementAmount = modAResult.matchedList.reduce((acc, row) => acc + parseFloat(row.Amount || 0), 0);
+  const gefuResult = generateGefuFile({ grossAmount: grossSettlementAmount }, new Date().toISOString().replace(/-/g, '').slice(0, 8));
+
+  // 4. Generate Settlement File & IMPS Payout File
+  const settlementResult = generateSettlementAndPayoutFiles(modAResult.matchedList, gefuResult.finalSettlementAmount);
+
+  res.json({
+    cycle,
+    summary: {
+      totalProcessed: modAResult.summary['Total Transactions'],
+      matchedCount: modAResult.summary['Matched Count'],
+      mismatchedCount: modAResult.summary['Mismatched Count'],
+      matchRate: modAResult.summary['Match Rate'],
+      gefuControlTotals: gefuResult.controlTotals,
+      totalSettlement: settlementResult.totalSettlementAmount,
+      payoutRowsCount: settlementResult.payoutRowCount
+    },
+    // Output File 1 & 2: Recon Reports
+    matchedList: modAResult.matchedList,
+    mismatchedList: modAResult.mismatchedList,
+    // Output File 3 & 4: GEFU Files
+    gefuFlatFileContent: gefuResult.gefuFlatFileContent,
+    gefuAccountingLedger: gefuResult.accountingLedger,
+    // Output File 5 & 6: Settlement & Payout Files
+    settlementRows: settlementResult.settlementRows,
+    payoutRows: settlementResult.payoutRows
+  });
 });
 
 // Get GEFU File Content

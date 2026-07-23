@@ -4,25 +4,25 @@ import {
   RefreshCcw, 
   DollarSign,
   FileCheck,
-  Bell, 
   User, 
   LogOut, 
   X,
-  FileText
+  Layers
 } from 'lucide-react';
+import FullPipelineView from './components/FullPipelineView';
 import ModuleAView from './components/ModuleAView';
 import ModuleBView from './components/ModuleBView';
 import ModuleCView from './components/ModuleCView';
 import Login from './components/Login';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('module-a');
+  const [activeTab, setActiveTab] = useState('full-pipeline');
   const [user, setUser] = useState({ name: 'Finance Admin', role: 'Reconciliation Lead' });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const logout = () => {
     setUser(null);
-    setActiveTab('module-a');
+    setActiveTab('full-pipeline');
   };
 
   if (!user) {
@@ -31,6 +31,8 @@ function App() {
 
   const renderContent = () => {
     switch (activeTab) {
+      case 'full-pipeline':
+        return <FullPipelineView />;
       case 'module-a':
         return <ModuleAView />;
       case 'module-b':
@@ -38,7 +40,7 @@ function App() {
       case 'module-c':
         return <ModuleCView />;
       default:
-        return <ModuleAView />;
+        return <FullPipelineView />;
     }
   };
 
@@ -50,7 +52,7 @@ function App() {
           <div className="brand" style={{ padding: '0 8px' }}>
             <img src="https://iserveu.in/wp-content/uploads/2024/01/ISERVEU-MAIN-LOGO.png" alt="iServeU" style={{ height: '32px', filter: 'brightness(0) invert(1)' }} />
             <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.6)', fontWeight: '600', textTransform: 'uppercase', marginTop: '8px', letterSpacing: '1px' }}>
-              Reconciliation Tool
+              Reconciliation & Settlement
             </p>
           </div>
           <button className="mobile-only" onClick={() => setMobileMenuOpen(false)} style={{ background: 'none', border: 'none', color: 'white' }}>
@@ -60,13 +62,17 @@ function App() {
 
         <nav style={{ flex: 1 }}>
           <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <li className={`nav-item ${activeTab === 'full-pipeline' ? 'active' : ''}`} onClick={() => { setActiveTab('full-pipeline'); setMobileMenuOpen(false); }}>
+              <Layers size={18} />
+              <span>Full Pipeline (6 In / 6 Out)</span>
+            </li>
             <li className={`nav-item ${activeTab === 'module-a' ? 'active' : ''}`} onClick={() => { setActiveTab('module-a'); setMobileMenuOpen(false); }}>
               <RefreshCcw size={18} />
-              <span>Module A — Transaction Recon</span>
+              <span>Module A — Txn Recon</span>
             </li>
             <li className={`nav-item ${activeTab === 'module-b' ? 'active' : ''}`} onClick={() => { setActiveTab('module-b'); setMobileMenuOpen(false); }}>
               <DollarSign size={18} />
-              <span>Module B — Commission Recon</span>
+              <span>Module B — Comm Recon</span>
             </li>
             <li className={`nav-item ${activeTab === 'module-c' ? 'active' : ''}`} onClick={() => { setActiveTab('module-c'); setMobileMenuOpen(false); }}>
               <FileCheck size={18} />
@@ -97,12 +103,13 @@ function App() {
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '20px' }}>
           <div>
             <h1 style={{ fontSize: '26px', marginBottom: '4px' }}>
+              {activeTab === 'full-pipeline' && 'UPI Reconciliation & Settlement Automation Pipeline'}
               {activeTab === 'module-a' && 'Module A — 4-Way Transaction Reconciliation'}
               {activeTab === 'module-b' && 'Module B — Commission Reconciliation'}
               {activeTab === 'module-c' && 'Module C — 3-Way Payout Reconciliation'}
             </h1>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              Independent reconciliation module. Compare input files and download dedicated Excel reports.
+              Ingest input reports, execute reconciliation & settlement, and download generated output files.
             </p>
           </div>
         </header>
@@ -137,3 +144,4 @@ function App() {
 }
 
 export default App;
+
