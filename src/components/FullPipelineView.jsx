@@ -25,6 +25,7 @@ import axios from 'axios';
 import { exportMultiSheetExcel, exportGefuExcelWorkbook, exportGefuAccountingExcel } from '../utils/excelWorkbookExporter';
 import { exportToExcel } from '../utils/excelExporter';
 import { saveJobToHistory } from '../utils/jobHistoryStore';
+import { getFeeConfig } from '../utils/feeConfigStore';
 
 const PIPELINE_STEPS = [
   { id: 1, title: 'Select Cycle', desc: 'Choose target cycle & date' },
@@ -142,6 +143,7 @@ const FullPipelineView = () => {
       }
 
       if (!data || !Array.isArray(data.matchedList)) {
+        const feeCfg = getFeeConfig();
         const sampleMatched = [];
         const sampleMismatched = [];
         for (let i = 1; i <= 300; i++) {
@@ -165,6 +167,21 @@ const FullPipelineView = () => {
           else sampleMatched.push(row);
         }
 
+        const grossAmt = 712500.00;
+        const calcBankShare = (grossAmt * (feeCfg.bankShareRate / 100));
+        const calcInterchange = (grossAmt * (feeCfg.interchangeRate / 100));
+        const calcSwitching = (285 * feeCfg.switchingFeePerTxn);
+        const calcNet = grossAmt - (calcBankShare + calcInterchange + calcSwitching);
+
+        const limit = feeCfg.impsPayoutMaxLimit || 500000;
+        const payoutRowsList = [];
+        if (calcNet > limit) {
+          payoutRowsList.push({ clientReferenceNo: 'PO_merchant_01_01', username: 'merchant_01', beneName: 'Merchant Store', beneAccountNo: '501001234', beneifsc: 'HDFC0001234', paramA: 'UPI_SETTL_REM', amount: (calcNet - limit).toFixed(2) });
+          payoutRowsList.push({ clientReferenceNo: 'PO_merchant_01_02', username: 'merchant_01', beneName: 'Merchant Store', beneAccountNo: '501001234', beneifsc: 'HDFC0001234', paramA: 'UPI_SETTL_MAX', amount: limit.toFixed(2) });
+        } else {
+          payoutRowsList.push({ clientReferenceNo: 'PO_merchant_01_01', username: 'merchant_01', beneName: 'Merchant Store', beneAccountNo: '501001234', beneifsc: 'HDFC0001234', paramA: 'UPI_SETTL', amount: calcNet.toFixed(2) });
+        }
+
         data = {
           jobId: generatedJobId,
           cycle,
@@ -172,15 +189,14 @@ const FullPipelineView = () => {
           mismatchedList: sampleMismatched,
           gefuFlatFileContent: 'HDR20260723NSDL0000001\nDTL501001234DR00000002500000PAYMENT\nFTR00000100000002500000',
           gefuAccountingLedger: [
-            { 'Account Number': '501001234', 'Dr/Cr': 'DR', 'Amount': 2500.00, 'Narration': 'UPI Settlement Net' }
+            { 'Account Number': '208100063', 'Account Name': 'RBI Mirror Account', 'Debit / Credit': 'Debit', 'Amount': calcNet.toFixed(2), 'Remarks': `UPI_NPT_FinalSettledAmt_${cycle}`, 'Source': 'NPCI NTSL' },
+            { 'Account Number': '208100472', 'Account Name': 'SL-UPI ACQUIRING PAYABLE-MERCHANT SETTLEMENT', 'Debit / Credit': 'Credit', 'Amount': calcNet.toFixed(2), 'Remarks': `UPI_NPT_FinalSettledAmt_${cycle}`, 'Source': 'NPCI NTSL' },
+            { 'Account Number': '302110017', 'Account Name': 'COMM-UPI', 'Debit / Credit': 'Credit', 'Amount': calcBankShare.toFixed(2), 'Remarks': `Bank Share @ ${feeCfg.bankShareRate}%`, 'Source': `${feeCfg.bankShareRate}% Rate` }
           ],
           settlementRows: [
-            { userName: 'merchant_01', count: 285, txnAmount: 712500.00, interchange: 356.25, switchingFee: 35.63, bankShare: 1429.28, netSettlement: 710678.84 }
+            { userName: 'merchant_01', count: 285, txnAmount: grossAmt, interchange: calcInterchange.toFixed(2), switchingFee: calcSwitching.toFixed(2), bankShare: calcBankShare.toFixed(2), netSettlement: calcNet.toFixed(2) }
           ],
-          payoutRows: [
-            { clientReferenceNo: 'PO_merchant_01_01', username: 'merchant_01', beneName: 'Merchant Store', beneAccountNo: '501001234', beneifsc: 'HDFC0001234', paramA: 'UPI_SETTL_REM', amount: '210678.84' },
-            { clientReferenceNo: 'PO_merchant_01_02', username: 'merchant_01', beneName: 'Merchant Store', beneAccountNo: '501001234', beneifsc: 'HDFC0001234', paramA: 'UPI_SETTL_MAX', amount: '500000.00' }
-          ]
+          payoutRows: payoutRowsList
         };
       }
 
