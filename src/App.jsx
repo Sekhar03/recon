@@ -220,7 +220,7 @@ function App() {
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px', flexWrap: 'wrap', gap: '20px' }}>
           <div>
             <h1 style={{ fontSize: '24px', marginBottom: '4px' }}>
-              {activeTab === 'dashboard' && 'UPI, DMT & MATM Multi-Product Reconciliation Console'}
+              {activeTab === 'dashboard' && 'UPI Reconciliation & Settlement Console'}
               {activeTab === 'cycles' && 'NPCI Sub-Cycle Scheduler & Cut-off Management'}
               {activeTab === 'full-pipeline' && '6-Input File → 6-Output File Reconciliation & Settlement Pipeline'}
               {activeTab === 'module-a' && 'Module A — 4-Way Transaction Reconciliation'}
@@ -234,7 +234,7 @@ function App() {
               {activeTab === 'settings' && 'Rules Matrix & System Settings'}
             </h1>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-              Comprehensive multi-product reconciliation, settlement generation, and reporting platform.
+              Comprehensive UPI transaction reconciliation, settlement generation, and reporting platform.
             </p>
           </div>
         </header>

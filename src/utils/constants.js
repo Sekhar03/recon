@@ -4,32 +4,8 @@ export const PRODUCTS = [
     name: 'UPI Reconciliation & Settlement',
     banks: ['NSDL Payments Bank', 'IPPB', 'Axis Bank'],
     type: '10 Sub-Cycles / 3 Internal Cycles',
-    files: 4,
-    description: '4-way transaction recon (NPCI, Switch, Middleware, Wallet), NTSL -> GEFU flat file, Merchant Settlement & IMPS split payouts.'
-  },
-  {
-    id: 'matm',
-    name: 'mATM',
-    banks: ['IPPB', 'NSDL'],
-    type: 'Cycle-wise',
-    files: 4,
-    description: '4-way reconciliation across NPCI, Switch, Middleware, and Wallet.'
-  },
-  {
-    id: 'dmt',
-    name: 'DMT',
-    banks: ['Airtel', 'FINO', 'NSDL'],
-    type: 'Day-wise',
-    files: 3,
-    description: '3-way reconciliation using gatewayId / RRN as the join key.'
-  },
-  {
-    id: 'aeps',
-    name: 'AePS Cash Deposit',
-    banks: ['NSDL', 'IPPB', 'FINO'],
-    type: 'Cycle-wise',
-    files: 5,
-    description: '5-way matching including NPCI, Switch, Middleware, Wallet, and BAV Report.'
+    files: 6,
+    description: '4-way transaction recon (NPCI, Switch, Middleware, Wallet), Commission recon, NTSL -> GEFU flat file, Merchant Settlement & IMPS split payouts.'
   }
 ];
 
