@@ -1,68 +1,75 @@
 /**
- * 3.4 Commission Reconciliation Module
- * Joins Middleware matched records with Commission Report.
- * Flags transactions missing commission debits for partner credit / merchant debit audit logging.
+ * Module B — Commission Reconciliation
+ * Joins Matched Middleware transactions with Commission Report.
+ * Emits Summary, Commission_Matched, and Commission_Mismatched datasets.
  */
 
-export function runCommissionReconciliation(matchedTxns, commissionRows = []) {
-  const commMap = new Map();
+export function runModuleBCommissionRecon(matchedMwTxns = [], commissionRows = []) {
+  const matchedList = [];
+  const mismatchedList = [];
+
+  const commMapByRelationalId = new Map();
   commissionRows.forEach(c => {
-    const key = c.relationalId || c.Id;
-    if (key) commMap.set(String(key), c);
+    const key = c.relationalId || c.Id || c.transactionId;
+    if (key) commMapByRelationalId.set(String(key), c);
   });
 
-  const reconciledCommissions = [];
-  const missingCommissionExceptions = [];
+  matchedMwTxns.forEach(mwTxn => {
+    const txnId = mwTxn['Transaction ID'] || mwTxn.id || mwTxn.Id;
+    const rrn = mwTxn['RRN'] || mwTxn.rrn || 'N/A';
+    const mwUser = mwTxn['userName'] || mwTxn.userName || 'merchant_01';
+    const mwAmt = parseFloat(mwTxn['Amount'] || mwTxn.amount || 0);
 
-  matchedTxns.forEach(txn => {
-    const commRecord = commMap.get(String(txn.id)) || commMap.get(String(txn.rrn));
+    const commRecord = commMapByRelationalId.get(String(txnId)) || commMapByRelationalId.get(String(rrn));
 
-    if (commRecord) {
-      const commAmount = parseFloat(commRecord.amountTransacted || commRecord.relationalAmount || 0);
-      reconciledCommissions.push({
-        txnId: txn.id,
-        rrn: txn.rrn,
-        userName: txn.userName,
-        txnAmount: txn.amount,
-        commissionAmount: commAmount,
-        tds: parseFloat(commRecord.tds || 0),
-        taxable: parseFloat(commRecord.taxable || 0),
-        gst: parseFloat(commRecord.gst || 0),
-        status: 'MATCHED'
+    const baseRecord = {
+      'Transaction ID': txnId,
+      'RRN': rrn,
+      'User Name': mwUser,
+      'Transaction Amount': mwAmt.toFixed(2),
+      'Commission Amount': commRecord ? parseFloat(commRecord.amountTransacted || commRecord.relationalAmount || 0).toFixed(2) : '0.00',
+      'TDS': commRecord ? parseFloat(commRecord.tds || 0).toFixed(2) : '0.00',
+      'GST': commRecord ? parseFloat(commRecord.gst || 0).toFixed(2) : '0.00'
+    };
+
+    if (!commRecord) {
+      mismatchedList.push({
+        ...baseRecord,
+        'Label': 'Commission not debited — needs manual debit from merchant + manual credit to partner',
+        'Notes': ''
       });
     } else {
-      // Missing commission debit exception
-      const estimatedComm = (parseFloat(txn.amount) * 0.0015).toFixed(2); // 0.15% default fallback estimate
-      const exceptionObj = {
-        txnId: txn.id,
-        rrn: txn.rrn,
-        userName: txn.userName,
-        txnAmount: txn.amount,
-        estimatedCommission: estimatedComm,
-        actionRequired: 'Manual debit from merchant + Manual credit to partner account',
-        status: 'MISSING_COMMISSION',
-        loggedAt: new Date().toISOString()
-      };
-      missingCommissionExceptions.push(exceptionObj);
-      reconciledCommissions.push({
-        txnId: txn.id,
-        rrn: txn.rrn,
-        userName: txn.userName,
-        txnAmount: txn.amount,
-        commissionAmount: parseFloat(estimatedComm),
-        status: 'ESTIMATED_PENDING_AUDIT'
-      });
+      const commRelAmt = parseFloat(commRecord.relationalAmount || mwAmt);
+      const commUser = commRecord.userName || commRecord.merchantName || mwUser;
+
+      const amtDiff = Math.abs(mwAmt - commRelAmt);
+      const userMatch = commUser.toLowerCase() === mwUser.toLowerCase();
+
+      if (amtDiff < 0.05 && userMatch) {
+        matchedList.push({ ...baseRecord, 'Status': 'Matched' });
+      } else if (!userMatch) {
+        mismatchedList.push({ ...baseRecord, 'Label': 'Username mismatch', 'Notes': '' });
+      } else if (amtDiff >= 0.05) {
+        mismatchedList.push({ ...baseRecord, 'Label': 'Amount mismatch', 'Notes': '' });
+      } else {
+        mismatchedList.push({ ...baseRecord, 'Label': 'Unclassified — needs manual review', 'Notes': '' });
+      }
     }
   });
 
-  const totalCommission = reconciledCommissions.reduce((acc, curr) => acc + (curr.commissionAmount || 0), 0);
+  const total = matchedMwTxns.length;
+  const matchedCount = matchedList.length;
+  const mismatchedCount = mismatchedList.length;
 
   return {
-    totalTxns: matchedTxns.length,
-    commissionMatchedCount: matchedTxns.length - missingCommissionExceptions.length,
-    missingCommissionCount: missingCommissionExceptions.length,
-    totalCommissionAmount: totalCommission.toFixed(2),
-    reconciledCommissions,
-    missingCommissionExceptions
+    summary: {
+      'Total Transactions Analyzed': total,
+      'Commission Matched Count': matchedCount,
+      'Commission Mismatched Count': mismatchedCount,
+      'Commission Match Rate': total > 0 ? ((matchedCount / total) * 100).toFixed(1) + '%' : '0%'
+    },
+    matchedList,
+    mismatchedList
   };
 }
+

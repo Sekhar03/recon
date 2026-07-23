@@ -1,81 +1,83 @@
 /**
- * 3.8 Payout Reconciliation (3-Way Match) Engine
+ * Module C — Payout Reconciliation (3-Way)
  * Reconciles iServeU Payout Report, Bank MIS Report, and Bank Statement.
- * Flags discrepancies and logs audit trail for reviewer disposition.
+ * Emits Summary, Payout_Matched, and Payout_Mismatched datasets.
  */
 
-export function runPayoutReconciliation(payoutRows, bankMisRows = [], bankStatementRows = []) {
-  const misMap = new Map();
+export function runModuleCPayoutRecon(payoutRows = [], bankMisRows = [], bankStatementRows = []) {
+  const matchedList = [];
+  const mismatchedList = [];
+
+  const misMapByRef = new Map();
   bankMisRows.forEach(r => {
-    const key = r.clientReferenceNo || r.utr || r.payoutRef;
-    if (key) misMap.set(String(key), r);
+    const key = r.clientReferenceNo || r.utr || r.payoutRef || r.refNo;
+    if (key) misMapByRef.set(String(key), r);
   });
 
-  const stmtMap = new Map();
+  const stmtMapByRef = new Map();
   bankStatementRows.forEach(s => {
     const key = s.utr || s.clientReferenceNo || s.refNo;
-    if (key) stmtMap.set(String(key), s);
+    if (key) stmtMapByRef.set(String(key), s);
   });
 
-  const matchedPayouts = [];
-  const payoutExceptions = [];
-
   payoutRows.forEach(po => {
-    const refNo = po.clientReferenceNo;
-    const misRow = misMap.get(String(refNo));
-    const stmtRow = stmtMap.get(String(refNo));
+    const refNo = po.clientReferenceNo || po.refNo || po.utr;
+    const username = po.username || po.userName || 'merchant_01';
+    const poAmt = parseFloat(po.amount || po.payoutAmount || 0);
 
-    const poAmt = parseFloat(po.amount || 0);
-    const misAmt = misRow ? parseFloat(misRow.amount || 0) : null;
-    const stmtAmt = stmtRow ? parseFloat(stmtRow.amount || 0) : null;
+    const misRow = misMapByRef.get(String(refNo));
+    const stmtRow = stmtMapByRef.get(String(refNo));
 
-    const misStatus = misRow ? (misRow.status || 'SUCCESS') : 'MISSING_IN_MIS';
-    const stmtStatus = stmtRow ? (stmtRow.status || 'DEBITED') : 'MISSING_IN_STMT';
+    const misAmt = misRow ? parseFloat(misRow.amount || misRow.bankMisAmount || 0) : null;
+    const stmtAmt = stmtRow ? parseFloat(stmtRow.amount || stmtRow.bankStmtAmount || 0) : null;
 
-    const isAmtMatched = (misAmt === null || Math.abs(poAmt - misAmt) < 0.01) &&
-                         (stmtAmt === null || Math.abs(poAmt - stmtAmt) < 0.01);
+    const misStatus = misRow ? String(misRow.status || 'SUCCESS').toUpperCase() : 'N/A';
+    const stmtStatus = stmtRow ? String(stmtRow.status || 'DEBITED').toUpperCase() : 'N/A';
 
-    const isFullyMatched = misRow && stmtRow && isAmtMatched && misStatus === 'SUCCESS' && (stmtStatus === 'DEBITED' || stmtStatus === 'SUCCESS');
-
-    const resultRecord = {
-      clientReferenceNo: refNo,
-      username: po.username,
-      beneName: po.beneName,
-      payoutAmount: poAmt,
-      bankMisAmount: misAmt,
-      bankStmtAmount: stmtAmt,
-      payoutStatus: 'INITIATED',
-      bankMisStatus: misStatus,
-      bankStmtStatus: stmtStatus,
-      utr: misRow?.utr || stmtRow?.utr || `UTR${Date.now()}${Math.floor(Math.random() * 1000)}`,
-      reconciledAt: new Date().toISOString()
+    const baseRecord = {
+      'Client Reference No': refNo,
+      'User Name': username,
+      'Payout Amount': poAmt.toFixed(2),
+      'Bank MIS Amount': misAmt !== null ? misAmt.toFixed(2) : 'N/A',
+      'Bank Statement Amount': stmtAmt !== null ? stmtAmt.toFixed(2) : 'N/A',
+      'Bank MIS Status': misStatus,
+      'Bank Statement Status': stmtStatus,
+      'UTR': misRow?.utr || stmtRow?.utr || po.utr || 'N/A'
     };
 
-    if (isFullyMatched) {
-      matchedPayouts.push({ ...resultRecord, status: 'MATCHED' });
+    if (!misRow) {
+      mismatchedList.push({ ...baseRecord, 'Label': 'Missing in Bank MIS', 'Notes': '' });
+    } else if (!stmtRow) {
+      mismatchedList.push({ ...baseRecord, 'Label': 'Missing in Bank Statement', 'Notes': '' });
     } else {
-      let failureReason = 'Discrepancy detected';
-      if (!misRow) failureReason = 'Missing in Bank MIS Report';
-      else if (!stmtRow) failureReason = 'Missing in Bank Statement';
-      else if (!isAmtMatched) failureReason = 'Amount variance across records';
-      else if (misStatus !== 'SUCCESS') failureReason = `Bank MIS status: ${misStatus}`;
+      const isAmtMatch = Math.abs(poAmt - misAmt) < 0.05 && Math.abs(poAmt - stmtAmt) < 0.05;
+      const isStatusMatch = (misStatus === 'SUCCESS' || misStatus === 'PROCESSED') && (stmtStatus === 'DEBITED' || stmtStatus === 'SUCCESS');
 
-      payoutExceptions.push({
-        ...resultRecord,
-        status: 'EXCEPTION',
-        failureReason,
-        actionRequired: 'Escalate to Bank Ops / Manual Review',
-        dispositionStatus: 'PENDING_REVIEW'
-      });
+      if (isAmtMatch && isStatusMatch) {
+        matchedList.push({ ...baseRecord, 'Status': 'Matched' });
+      } else if (!isAmtMatch) {
+        mismatchedList.push({ ...baseRecord, 'Label': 'Amount mismatch', 'Notes': '' });
+      } else if (!isStatusMatch) {
+        mismatchedList.push({ ...baseRecord, 'Label': 'Status mismatch', 'Notes': '' });
+      } else {
+        mismatchedList.push({ ...baseRecord, 'Label': 'Unclassified — needs manual review', 'Notes': '' });
+      }
     }
   });
 
+  const total = payoutRows.length;
+  const matchedCount = matchedList.length;
+  const mismatchedCount = mismatchedList.length;
+
   return {
-    totalPayouts: payoutRows.length,
-    matchedCount: matchedPayouts.length,
-    exceptionCount: payoutExceptions.length,
-    matchedPayouts,
-    payoutExceptions,
-    payoutMatchRate: payoutRows.length > 0 ? ((matchedPayouts.length / payoutRows.length) * 100).toFixed(1) + '%' : '0%'
+    summary: {
+      'Total Payouts Analyzed': total,
+      'Payout Matched Count': matchedCount,
+      'Payout Mismatched Count': mismatchedCount,
+      'Payout Match Rate': total > 0 ? ((matchedCount / total) * 100).toFixed(1) + '%' : '0%'
+    },
+    matchedList,
+    mismatchedList
   };
 }
+
