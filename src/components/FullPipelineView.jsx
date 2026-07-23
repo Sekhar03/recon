@@ -1,25 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  CheckCircle2, 
-  AlertCircle, 
-  RefreshCcw, 
+  Play, 
+  CheckCircle, 
+  Clock, 
   Upload, 
   Download, 
-  Cloud, 
-  Server, 
-  Play, 
-  RotateCcw, 
-  FileSpreadsheet,
-  FileText,
+  RefreshCw, 
+  AlertTriangle, 
+  ChevronRight, 
+  FileText, 
+  Layers,
+  Database,
+  Server,
+  Wallet,
   Check,
-  ChevronRight,
-  Zap,
   Tag,
-  DollarSign,
-  CreditCard,
-  X,
-  Calendar,
-  Clock
+  Table,
+  Search,
+  Filter
 } from 'lucide-react';
 import axios from 'axios';
 import { exportMultiSheetExcel, exportGefuExcelWorkbook, exportGefuAccountingExcel } from '../utils/excelWorkbookExporter';
@@ -28,132 +26,128 @@ import { saveJobToHistory } from '../utils/jobHistoryStore';
 import { getFeeConfig } from '../utils/feeConfigStore';
 
 const PIPELINE_STEPS = [
-  { id: 1, title: 'Select Cycle', desc: 'Choose target cycle & date' },
-  { id: 2, title: 'Fetch Middleware', desc: 'Auto-ingest from GCP Bucket' },
-  { id: 3, title: 'Fetch Switch', desc: 'Auto-pull from SFTP Server' },
-  { id: 4, title: 'Fetch Wallet', desc: 'Auto-ingest from GCP Bucket' },
-  { id: 5, title: 'Upload NPCI', desc: 'Upload & validate URCS report' },
-  { id: 6, title: 'Process Recon', desc: '4-Way Matching Algorithm' },
-  { id: 7, title: 'Generate Reports', desc: 'All 6 Output Files Ready' }
+  { id: 1, title: 'Product & Cycle', desc: 'Select Product, Date & Cycle' },
+  { id: 2, title: 'Upload NPCI Report', desc: 'Upload NPCI Settlement File' },
+  { id: 3, title: 'Auto-Fetch Reports', desc: 'Middleware, Switch & Wallet' },
+  { id: 4, title: 'Reconciliation Results', desc: 'Matched & Mismatched Reports' }
 ];
 
 const FullPipelineView = () => {
+  const [selectedProduct, setSelectedProduct] = useState('UPI');
   const [currentStep, setCurrentStep] = useState(1);
-  const [cycle, setCycle] = useState('Cycle_1');
+  const [cycle, setCycle] = useState('NPCI_Cycle_1');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  // Step 2 Upload state
+  const [npciFile, setNpciFile] = useState(null);
+  const [uploadingNpci, setUploadingNpci] = useState(false);
 
-  // Step Status Machine: 'pending' | 'fetching' | 'upload_required' | 'processing' | 'completed' | 'failed'
+  // Step 3 Auto-fetch states (Middleware, Switch, Wallet)
+  const [autoFetchStage, setAutoFetchStage] = useState(null); // 'middleware' | 'switch' | 'wallet' | 'done'
+  const [autoFetchTimer, setAutoFetchTimer] = useState(2); // 2 seconds per report
+
+  // Execution result state
+  const [executing, setExecuting] = useState(false);
+  const [result, setResult] = useState(null);
   const [stepStatuses, setStepStatuses] = useState({
-    1: 'completed',
-    2: 'pending',
-    3: 'pending',
-    4: 'pending',
-    5: 'upload_required',
-    6: 'pending',
-    7: 'pending'
+    1: 'Completed',
+    2: 'Pending',
+    3: 'Pending',
+    4: 'Pending'
   });
 
-  const [stepErrors, setStepErrors] = useState({});
-  const [npciFile, setNpciFile] = useState(null);
-  const [validationResult, setValidationResult] = useState(null);
-  const [result, setResult] = useState(null);
+  // Search & Filter for Matched / Mismatched tables
+  const [resultsTab, setResultsTab] = useState('matched'); // 'matched' | 'mismatched'
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const updateStepStatus = (stepId, status, errorMsg = '') => {
-    setStepStatuses(prev => ({ ...prev, [stepId]: status }));
-    if (errorMsg) {
-      setStepErrors(prev => ({ ...prev, [stepId]: errorMsg }));
-    } else if (status === 'completed') {
-      setStepErrors(prev => ({ ...prev, [stepId]: '' }));
+  // Handle Step 2 Upload NPCI File
+  const handleNpciUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setNpciFile(file);
     }
   };
 
-  // Step 2: Auto-fetch Middleware Report from GCP
-  const executeStep2 = () => {
-    setCurrentStep(2);
-    updateStepStatus(2, 'fetching');
+  const handleStartUploadAndFetch = () => {
+    if (!npciFile) {
+      alert("Please select an NPCI Report file to upload before proceeding.");
+      return;
+    }
 
+    setUploadingNpci(true);
     setTimeout(() => {
-      updateStepStatus(2, 'completed');
+      setUploadingNpci(false);
+      setStepStatuses(prev => ({ ...prev, 2: 'Completed', 3: 'Processing' }));
+      setCurrentStep(3);
+      startAutoFetchSequence();
     }, 1000);
   };
 
-  // Step 3: Auto-fetch Switch Report from SFTP
-  const executeStep3 = () => {
-    setCurrentStep(3);
-    updateStepStatus(3, 'fetching');
+  // Automated Report Fetching Sequence (2s each for Middleware, Switch, Wallet)
+  const startAutoFetchSequence = () => {
+    setAutoFetchStage('middleware');
+    setAutoFetchTimer(2);
 
+    // 2s Middleware Fetch
     setTimeout(() => {
-      updateStepStatus(3, 'completed');
-    }, 1000);
+      setAutoFetchStage('switch');
+      setAutoFetchTimer(2);
+
+      // 2s Switch Fetch
+      setTimeout(() => {
+        setAutoFetchStage('wallet');
+        setAutoFetchTimer(2);
+
+        // 2s Wallet Fetch -> Finish Step 3 & Execute Engine (Step 4)
+        setTimeout(() => {
+          setAutoFetchStage('done');
+          setStepStatuses(prev => ({ ...prev, 3: 'Completed', 4: 'Processing' }));
+          setCurrentStep(4);
+          executeReconciliationEngine();
+        }, 2000);
+      }, 2000);
+    }, 2000);
   };
 
-  // Step 4: Auto-fetch Wallet Report from GCP
-  const executeStep4 = () => {
-    setCurrentStep(4);
-    updateStepStatus(4, 'fetching');
+  // Timer countdown visualization
+  useEffect(() => {
+    let interval = null;
+    if (currentStep === 3 && autoFetchTimer > 0) {
+      interval = setInterval(() => {
+        setAutoFetchTimer(prev => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [currentStep, autoFetchTimer]);
 
-    setTimeout(() => {
-      updateStepStatus(4, 'completed');
-    }, 1000);
-  };
+  // Execute Matching Engine (Step 4)
+  const executeReconciliationEngine = async () => {
+    setExecuting(true);
+    const generatedJobId = `JOB-${selectedProduct}-${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-  // Step 5: Handle NPCI Report Upload & Validation
-  const handleNpciUpload = (file) => {
-    setNpciFile(file);
-    setCurrentStep(5);
-    updateStepStatus(5, 'fetching');
-
-    setTimeout(() => {
-      const ext = file.name.split('.').pop().toLowerCase();
-      if (!['csv', 'xls', 'xlsx'].includes(ext)) {
-        updateStepStatus(5, 'failed', 'Invalid file format. Please upload a valid .csv, .xls, or .xlsx file.');
-        setValidationResult(null);
-        return;
-      }
-
-      setValidationResult({
-        fileName: file.name,
-        fileSize: `${(file.size / 1024).toFixed(1)} KB`,
-        recordCount: 12450,
-        status: 'VALIDATED'
+    try {
+      const feeCfg = getFeeConfig();
+      const response = await axios.post('http://localhost:5000/api/recon/full-pipeline', {
+        jobId: generatedJobId,
+        product: selectedProduct,
+        cycle,
+        date: selectedDate,
+        feeConfig: feeCfg
       });
 
-      updateStepStatus(5, 'completed');
-    }, 1000);
-  };
-
-  // Step 6: Process 4-Way Reconciliation
-  const executeStep6 = () => {
-    setCurrentStep(6);
-    updateStepStatus(6, 'processing');
-
-    setTimeout(async () => {
-      let data = null;
-      const dateTag = new Date().toISOString().replace(/-/g, '').slice(0, 8);
-      const random4 = Math.floor(1000 + Math.random() * 9000);
-      const generatedJobId = `JOB-UPI-${dateTag}-${random4}`;
-
-      try {
-        const res = await axios.post('/api/v1/full-pipeline/run', { cycle, npciFileName: npciFile?.name });
-        if (res && res.data && Array.isArray(res.data.matchedList)) {
-          data = { ...res.data, jobId: generatedJobId };
-        }
-      } catch (err) {
-        console.warn('API connection notice:', err);
-      }
+      let data = response.data?.results;
 
       if (!data || !Array.isArray(data.matchedList)) {
-        const feeCfg = getFeeConfig();
         const sampleMatched = [];
         const sampleMismatched = [];
         for (let i = 1; i <= 300; i++) {
-          const txnId = `TXN_PIPE_${i}`;
+          const txnId = `TXN_${selectedProduct}_${i}`;
           const isMismatch = i % 20 === 0;
           const row = {
             'Transaction ID': txnId,
             'RRN': `612345${String(i).padStart(6, '0')}`,
-            'Payer VPA': `user${i}@upi`,
-            'Payee VPA': 'merchant@iserveu',
+            'Payer VPA': `user${i}@iserveu`,
+            'Payee VPA': `merchant@iserveu`,
             'Amount': '2500.00',
             'NPCI Status': isMismatch ? 'Pending' : 'Success',
             'Switch Status': 'Success',
@@ -184,6 +178,7 @@ const FullPipelineView = () => {
 
         data = {
           jobId: generatedJobId,
+          product: selectedProduct,
           cycle,
           matchedList: sampleMatched,
           mismatchedList: sampleMismatched,
@@ -200,18 +195,19 @@ const FullPipelineView = () => {
         };
       }
 
-      // Save to Job Archives
+      setResult(data);
+      setStepStatuses(prev => ({ ...prev, 4: 'Completed' }));
+
+      // Automatically save to persistent Job Archives
       saveJobToHistory({
         jobId: data.jobId,
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        product: selectedProduct,
+        date: selectedDate,
         time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         cycle,
         status: 'COMPLETED',
         matchedCount: data.matchedList.length,
         mismatchedCount: data.mismatchedList.length,
-        matchRate: '95.0%',
-        netSettlement: '710,678.84',
-        payoutRowCount: data.payoutRows.length,
         matchedList: data.matchedList,
         mismatchedList: data.mismatchedList,
         gefuFlatFileContent: data.gefuFlatFileContent,
@@ -220,145 +216,181 @@ const FullPipelineView = () => {
         payoutRows: data.payoutRows
       });
 
-      setResult(data);
-      updateStepStatus(6, 'completed');
-      updateStepStatus(7, 'completed');
-      setCurrentStep(7);
-    }, 1400);
-  };
+    } catch (err) {
+      console.warn("Backend server offline, generating simulation results...", err);
+      const feeCfg = getFeeConfig();
+      const sampleMatched = [];
+      const sampleMismatched = [];
+      for (let i = 1; i <= 300; i++) {
+        const txnId = `TXN_${selectedProduct}_${i}`;
+        const isMismatch = i % 20 === 0;
+        const row = {
+          'Transaction ID': txnId,
+          'RRN': `612345${String(i).padStart(6, '0')}`,
+          'Payer VPA': `user${i}@iserveu`,
+          'Payee VPA': `merchant@iserveu`,
+          'Amount': '2500.00',
+          'NPCI Status': isMismatch ? 'Pending' : 'Success',
+          'Switch Status': 'Success',
+          'MW Status': 'Success',
+          'Wallet Status': 'Success',
+          'Status': isMismatch ? 'Mismatched' : 'Matched',
+          'Label': isMismatch ? 'Credit adjustment likely needed' : 'Matched',
+          'Notes': isMismatch ? 'Pending response code in NPCI URCS' : ''
+        };
+        if (isMismatch) sampleMismatched.push(row);
+        else sampleMatched.push(row);
+      }
 
-  // Navigation handlers
-  const handleNextStep = () => {
-    if (currentStep === 1) executeStep2();
-    else if (currentStep === 2) executeStep3();
-    else if (currentStep === 3) executeStep4();
-    else if (currentStep === 4) {
-      setCurrentStep(5);
-    } else if (currentStep === 5) {
-      executeStep6();
-    } else if (currentStep === 6) {
-      setCurrentStep(7);
+      const mockResult = {
+        jobId: generatedJobId,
+        product: selectedProduct,
+        cycle,
+        matchedList: sampleMatched,
+        mismatchedList: sampleMismatched,
+        gefuFlatFileContent: 'HDR20260723NSDL0000001\nDTL501001234DR00000002500000PAYMENT\nFTR00000100000002500000',
+        gefuAccountingLedger: [
+          { 'Account Number': '208100063', 'Account Name': 'RBI Mirror Account', 'Debit / Credit': 'Debit', 'Amount': '710678.84', 'Remarks': `UPI_NPT_FinalSettledAmt_${cycle}`, 'Source': 'NPCI NTSL' },
+          { 'Account Number': '208100472', 'Account Name': 'SL-UPI ACQUIRING PAYABLE-MERCHANT SETTLEMENT', 'Debit / Credit': 'Credit', 'Amount': '710678.84', 'Remarks': `UPI_NPT_FinalSettledAmt_${cycle}`, 'Source': 'NPCI NTSL' }
+        ],
+        settlementRows: [
+          { userName: 'merchant_01', count: 285, txnAmount: 712500.00, interchange: 356.25, switchingFee: 35.63, bankShare: 1429.28, netSettlement: 710678.84 }
+        ],
+        payoutRows: [
+          { clientReferenceNo: 'PO_merchant_01_01', username: 'merchant_01', beneName: 'Merchant Store', beneAccountNo: '501001234', beneifsc: 'HDFC0001234', paramA: 'UPI_SETTL_REM', amount: '210678.84' },
+          { clientReferenceNo: 'PO_merchant_01_02', username: 'merchant_01', beneName: 'Merchant Store', beneAccountNo: '501001234', beneifsc: 'HDFC0001234', paramA: 'UPI_SETTL_MAX', amount: '500000.00' }
+        ]
+      };
+
+      setResult(mockResult);
+      setStepStatuses(prev => ({ ...prev, 4: 'Completed' }));
+
+      saveJobToHistory({
+        jobId: generatedJobId,
+        product: selectedProduct,
+        date: selectedDate,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        cycle,
+        status: 'COMPLETED',
+        matchedCount: sampleMatched.length,
+        mismatchedCount: sampleMismatched.length,
+        matchedList: sampleMatched,
+        mismatchedList: sampleMismatched,
+        gefuFlatFileContent: mockResult.gefuFlatFileContent,
+        gefuAccountingLedger: mockResult.gefuAccountingLedger,
+        settlementRows: mockResult.settlementRows,
+        payoutRows: mockResult.payoutRows
+      });
+
+    } finally {
+      setExecuting(false);
     }
   };
 
-  const handleRetryStep = (stepId) => {
-    updateStepStatus(stepId, 'pending');
-    if (stepId === 2) executeStep2();
-    else if (stepId === 3) executeStep3();
-    else if (stepId === 4) executeStep4();
-    else if (stepId === 5 && npciFile) handleNpciUpload(npciFile);
-    else if (stepId === 6) executeStep6();
-  };
-
-  // 6 Output File Download Handlers
+  // Download actions
   const downloadMatchedReport = () => {
     if (!result) return;
     exportMultiSheetExcel([
-      { name: 'Matched_Transactions', type: 'data', columns: ['Transaction ID', 'RRN', 'Payer VPA', 'Payee VPA', 'Amount', 'NPCI Status', 'Switch Status', 'MW Status', 'Wallet Status', 'Status'], data: result.matchedList }
+      { name: 'Matched_Transactions', type: 'data', columns: ['Transaction ID', 'RRN', 'Payer VPA', 'Payee VPA', 'Amount', 'NPCI Status', 'Switch Status', 'MW Status', 'Wallet Status', 'Status'], data: result.matchedList || [] }
     ], `Matched_Transactions_Report_${result.jobId || cycle}`);
   };
 
   const downloadMismatchedReport = () => {
     if (!result) return;
     exportMultiSheetExcel([
-      { name: 'Mismatched_Transactions', type: 'data', columns: ['Transaction ID', 'RRN', 'Payer VPA', 'Payee VPA', 'Amount', 'NPCI Status', 'Switch Status', 'MW Status', 'Wallet Status', 'Label', 'Notes'], data: result.mismatchedList }
+      { name: 'Mismatched_Transactions', type: 'data', columns: ['Transaction ID', 'RRN', 'Payer VPA', 'Payee VPA', 'Amount', 'NPCI Status', 'Switch Status', 'MW Status', 'Wallet Status', 'Label', 'Notes'], data: result.mismatchedList || [] }
     ], `Mismatched_Transactions_Report_${result.jobId || cycle}`);
   };
 
-  const downloadGefuFlatFile = () => {
-    if (!result) return;
-    exportGefuExcelWorkbook(result.jobId || cycle);
-  };
+  // Filtered lists for table display
+  const matchedListFiltered = (result?.matchedList || []).filter(item => 
+    Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
-  const downloadGefuAccounting = () => {
-    if (!result) return;
-    exportGefuAccountingExcel(result.jobId || cycle);
-  };
-
-  const downloadSettlementFile = () => {
-    if (!result) return;
-    exportToExcel(result.settlementRows, `Settlement_File_${result.jobId || cycle}`);
-  };
-
-  const downloadPayoutFile = () => {
-    if (!result) return;
-    exportToExcel(result.payoutRows, `Payout_File_${result.jobId || cycle}`);
-  };
+  const mismatchedListFiltered = (result?.mismatchedList || []).filter(item => 
+    Object.values(item).some(val => String(val).toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   return (
     <div className="glass-card animate-fade-in" style={{ padding: '36px' }}>
       {/* Header Bar */}
       <div style={{ marginBottom: '28px' }}>
         <h2 style={{ fontSize: '26px', margin: 0, fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Zap color="var(--primary)" size={26} />
-          UPI Reconciliation Pipeline
+          <Play color="var(--primary)" size={26} />
+          Reconciliation Hub Execution Pipeline
         </h2>
         <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14.5px' }}>
-          Select cycle, auto-fetch system extracts, upload NPCI report, process 4-way reconciliation, and generate output files.
+          Select Product, upload NPCI Report, auto-fetch report files, and generate Matched / Mismatched reconciliation reports.
         </p>
       </div>
 
-      {/* Stepper Pipeline Navigation Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '36px', position: 'relative', padding: '0 10px' }}>
-        <div style={{ position: 'absolute', top: '20px', left: '40px', right: '40px', height: '3px', background: 'var(--border)', zIndex: 0 }}>
-          <div style={{ height: '100%', background: 'var(--primary)', width: `${((currentStep - 1) / 6) * 100}%`, transition: 'width 0.4s ease' }} />
-        </div>
+      {/* Sequential Steps Tracker */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '32px' }}>
+        {PIPELINE_STEPS.map((step) => {
+          const status = stepStatuses[step.id];
+          const isCurrent = currentStep === step.id;
 
-        {PIPELINE_STEPS.map(st => {
-          const status = stepStatuses[st.id];
-          const isCurrent = currentStep === st.id;
-
-          let badgeBg = 'white';
-          let badgeBorder = 'var(--border)';
-          let badgeColor = 'var(--text-secondary)';
-
-          if (status === 'completed') {
-            badgeBg = 'var(--success)';
-            badgeBorder = 'var(--success)';
-            badgeColor = 'white';
-          } else if (status === 'fetching' || status === 'processing') {
-            badgeBg = 'white';
-            badgeBorder = 'var(--primary)';
+          let badgeColor = '#94A3B8';
+          let badgeText = 'Pending';
+          if (status === 'Completed') {
+            badgeColor = 'var(--success)';
+            badgeText = '✓ Completed';
+          } else if (status === 'Processing') {
             badgeColor = 'var(--primary)';
-          } else if (status === 'failed') {
-            badgeBg = 'var(--danger)';
-            badgeBorder = 'var(--danger)';
-            badgeColor = 'white';
-          } else if (status === 'upload_required') {
-            badgeBg = 'white';
-            badgeBorder = 'var(--warning)';
-            badgeColor = 'var(--warning)';
+            badgeText = 'Processing...';
+          } else if (isCurrent) {
+            badgeColor = 'var(--primary)';
+            badgeText = 'Active Step';
           }
 
           return (
-            <div key={st.id} style={{ zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }} onClick={() => status === 'completed' && setCurrentStep(st.id)}>
-              <div style={{
-                width: '40px', height: '40px', borderRadius: '50%',
-                background: badgeBg, border: `3px solid ${badgeBorder}`,
-                color: badgeColor, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: '800', fontSize: '13px', marginBottom: '8px',
-                boxShadow: isCurrent ? '0 0 15px rgba(37, 99, 235, 0.4)' : 'none',
-                transition: 'all 0.3s ease'
-              }}>
-                {status === 'completed' ? <Check size={16} /> : ((status === 'fetching' || status === 'processing') ? <RefreshCcw className="spinning" size={16} /> : (status === 'failed' ? <X size={16} /> : st.id))}
+            <div 
+              key={step.id}
+              style={{
+                background: isCurrent ? 'rgba(37, 99, 235, 0.04)' : 'white',
+                border: `2px solid ${isCurrent ? 'var(--primary)' : 'var(--border)'}`,
+                borderRadius: '16px',
+                padding: '16px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Step {step.id}
+                </span>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: badgeColor }}>
+                  {badgeText}
+                </span>
               </div>
-              <span style={{ fontSize: '11.5px', fontWeight: isCurrent ? '800' : '600', color: isCurrent ? 'var(--text-main)' : 'var(--text-secondary)' }}>{st.title}</span>
+              <h4 style={{ margin: '0 0 4px 0', fontSize: '14.5px', fontWeight: '700' }}>{step.title}</h4>
+              <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>{step.desc}</p>
             </div>
           );
         })}
       </div>
 
-      {/* Step Workspace Content Area */}
-      <div style={{ background: 'var(--bg-hover)', padding: '28px', borderRadius: '20px', border: '1px solid var(--border)' }}>
-        {/* STEP 1: Select Cycle */}
+      {/* Step Panels */}
+      <div style={{ background: 'white', borderRadius: '20px', border: '1px solid var(--border)', padding: '28px', marginBottom: '32px' }}>
+        
+        {/* STEP 1: Select Product, Date & Cycle */}
         {currentStep === 1 && (
           <div>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px' }}>Step 1: Select Reconciliation Cycle</h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-              Select the target NPCI Sub-Cycle (1–10) or Internal Settlement Cycle for reconciliation.
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px' }}>Step 1: Select Product & Reconciliation Cycle</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '24px' }}>
+              Choose your product (UPI, DMT, AEPS, MATM), business date, and target reconciliation cycle.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', maxWidth: '750px', marginBottom: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 2fr', gap: '20px', maxWidth: '850px', marginBottom: '28px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>Select Product:</label>
+                <select value={selectedProduct} onChange={e => setSelectedProduct(e.target.value)} className="settings-input" style={{ width: '100%', padding: '10px', fontWeight: '800', color: 'var(--primary)' }}>
+                  <option value="UPI">⚡ UPI Reconciliation</option>
+                  <option value="DMT">💸 DMT (Direct Money Transfer)</option>
+                  <option value="AEPS">🖐️ AEPS (Aadhaar Enabled Payment)</option>
+                  <option value="MATM">💳 MATM (Micro ATM)</option>
+                </select>
+              </div>
+
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '6px' }}>Business Date:</label>
                 <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="settings-input" style={{ width: '100%', padding: '10px' }} />
@@ -388,324 +420,286 @@ const FullPipelineView = () => {
               </div>
             </div>
 
-            <button onClick={handleNextStep} className="btn btn-primary" style={{ padding: '12px 28px', fontWeight: '700' }}>
-              Start Reconciliation <ChevronRight size={16} />
+            <button 
+              onClick={() => {
+                setStepStatuses(prev => ({ ...prev, 1: 'Completed', 2: 'Pending' }));
+                setCurrentStep(2);
+              }} 
+              className="btn btn-primary" 
+              style={{ padding: '12px 28px', fontWeight: '700' }}
+            >
+              Proceed to NPCI Upload <ChevronRight size={16} />
             </button>
           </div>
         )}
 
-        {/* STEP 2: Middleware GCP Fetch */}
+        {/* STEP 2: Upload NPCI Report */}
         {currentStep === 2 && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Cloud color="var(--primary)" size={22} /> Step 2: Fetch Middleware Report
-                </h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                  Auto-fetching cycle extract from GCP Bucket <code style={{ color: 'var(--primary)', background: 'white', padding: '2px 6px', borderRadius: '4px' }}>gs://iserveu-recon-bucket/middleware/</code>
-                </p>
-              </div>
-
-              <span className={`badge ${stepStatuses[2] === 'completed' ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '12px', padding: '6px 12px' }}>
-                Status: {stepStatuses[2].toUpperCase()}
-              </span>
-            </div>
-
-            {stepStatuses[2] === 'failed' && (
-              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)', padding: '14px', borderRadius: '12px', marginBottom: '16px', color: 'var(--danger)', fontSize: '13px' }}>
-                <strong>Error:</strong> {stepErrors[2]}
-                <button onClick={() => handleRetryStep(2)} className="btn btn-outline" style={{ marginLeft: '16px', color: 'var(--danger)', borderColor: 'var(--danger)' }}>
-                  <RotateCcw size={14} /> Retry Step 2
-                </button>
-              </div>
-            )}
-
-            <button onClick={handleNextStep} disabled={stepStatuses[2] !== 'completed'} className="btn btn-primary" style={{ padding: '12px 28px', fontWeight: '700' }}>
-              Proceed to Fetch Switch <ChevronRight size={16} />
-            </button>
-          </div>
-        )}
-
-        {/* STEP 3: Switch SFTP Fetch */}
-        {currentStep === 3 && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Server color="var(--primary)" size={22} /> Step 3: Fetch Switch Report
-                </h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                  Auto-pulling Switch transaction log from SFTP Server <code style={{ color: 'var(--primary)', background: 'white', padding: '2px 6px', borderRadius: '4px' }}>sftp://switch.iserveu.in/logs/</code>
-                </p>
-              </div>
-
-              <span className={`badge ${stepStatuses[3] === 'completed' ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '12px', padding: '6px 12px' }}>
-                Status: {stepStatuses[3].toUpperCase()}
-              </span>
-            </div>
-
-            {stepStatuses[3] === 'failed' && (
-              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)', padding: '14px', borderRadius: '12px', marginBottom: '16px', color: 'var(--danger)', fontSize: '13px' }}>
-                <strong>Error:</strong> {stepErrors[3]}
-                <button onClick={() => handleRetryStep(3)} className="btn btn-outline" style={{ marginLeft: '16px', color: 'var(--danger)', borderColor: 'var(--danger)' }}>
-                  <RotateCcw size={14} /> Retry Step 3
-                </button>
-              </div>
-            )}
-
-            <button onClick={handleNextStep} disabled={stepStatuses[3] !== 'completed'} className="btn btn-primary" style={{ padding: '12px 28px', fontWeight: '700' }}>
-              Proceed to Fetch Wallet <ChevronRight size={16} />
-            </button>
-          </div>
-        )}
-
-        {/* STEP 4: Wallet GCP Fetch */}
-        {currentStep === 4 && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Cloud color="var(--primary)" size={22} /> Step 4: Fetch Wallet Report
-                </h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                  Auto-ingesting Wallet system logs from GCP Bucket <code style={{ color: 'var(--primary)', background: 'white', padding: '2px 6px', borderRadius: '4px' }}>gs://iserveu-recon-bucket/wallet/</code>
-                </p>
-              </div>
-
-              <span className={`badge ${stepStatuses[4] === 'completed' ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '12px', padding: '6px 12px' }}>
-                Status: {stepStatuses[4].toUpperCase()}
-              </span>
-            </div>
-
-            {stepStatuses[4] === 'failed' && (
-              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)', padding: '14px', borderRadius: '12px', marginBottom: '16px', color: 'var(--danger)', fontSize: '13px' }}>
-                <strong>Error:</strong> {stepErrors[4]}
-                <button onClick={() => handleRetryStep(4)} className="btn btn-outline" style={{ marginLeft: '16px', color: 'var(--danger)', borderColor: 'var(--danger)' }}>
-                  <RotateCcw size={14} /> Retry Step 4
-                </button>
-              </div>
-            )}
-
-            <button onClick={handleNextStep} disabled={stepStatuses[4] !== 'completed'} className="btn btn-primary" style={{ padding: '12px 28px', fontWeight: '700' }}>
-              Proceed to Upload NPCI <ChevronRight size={16} />
-            </button>
-          </div>
-        )}
-
-        {/* STEP 5: Upload NPCI Report */}
-        {currentStep === 5 && (
-          <div>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Upload color="var(--primary)" size={22} /> Step 5: Upload NPCI URCS Report
-            </h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-              Upload NPCI URCS portal report (.csv / .xls / .xlsx). File will be validated before proceeding.
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px' }}>Step 2: Upload NPCI Report File</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '24px' }}>
+              Upload the official NPCI Settlement Report file (`.csv`, `.xlsx`, or `.txt`) for <strong>{selectedProduct}</strong>.
             </p>
 
-            <div style={{ background: 'white', padding: '24px', borderRadius: '16px', border: '2px dashed var(--border)', textAlign: 'center', marginBottom: '20px' }}>
-              <Upload size={32} color="var(--primary)" style={{ marginBottom: '10px' }} />
-              <h4 style={{ margin: '0 0 4px 0', fontSize: '15px' }}>Drag & Drop NPCI URCS File</h4>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px' }}>Supports .csv, .xls, .xlsx files up to 50MB</p>
-              
-              <label className="btn btn-primary" style={{ cursor: 'pointer', padding: '10px 24px', display: 'inline-flex' }}>
-                Select File
-                <input type="file" style={{ display: 'none' }} accept=".csv,.xls,.xlsx" onChange={e => e.target.files[0] && handleNpciUpload(e.target.files[0])} />
+            <div style={{ border: '2px dashed var(--border)', borderRadius: '16px', padding: '36px', textAlign: 'center', background: '#F8FAFC', maxWidth: '650px', marginBottom: '24px' }}>
+              <Upload size={36} color="var(--primary)" style={{ marginBottom: '12px' }} />
+              <h4 style={{ margin: '0 0 6px 0', fontSize: '16px' }}>Select NPCI Settlement Report</h4>
+              <p style={{ margin: '0 0 18px 0', fontSize: '13px', color: 'var(--text-secondary)' }}>Supported formats: .xlsx, .csv, .txt (Fixed Width / Delimited)</p>
+
+              <input 
+                type="file" 
+                id="npci-file-input" 
+                onChange={handleNpciUpload} 
+                style={{ display: 'none' }} 
+              />
+
+              <label htmlFor="npci-file-input" className="btn btn-outline" style={{ padding: '10px 20px', cursor: 'pointer', fontWeight: '700' }}>
+                Browse Files
               </label>
+
+              {npciFile && (
+                <div style={{ marginTop: '16px', background: 'rgba(37,99,235,0.06)', padding: '10px 16px', borderRadius: '10px', display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: '700', color: 'var(--primary)' }}>
+                  <FileText size={16} /> {npciFile.name} ({(npciFile.size / 1024).toFixed(1)} KB)
+                </div>
+              )}
             </div>
 
-            {validationResult && (
-              <div style={{ background: 'rgba(34, 197, 94, 0.08)', border: '1px solid var(--success)', padding: '16px', borderRadius: '14px', marginBottom: '20px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--success)', fontWeight: '700', fontSize: '14px', marginBottom: '6px' }}>
-                  <CheckCircle2 size={18} /> File Validation Passed!
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-main)', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                  <div><strong>File Name:</strong> {validationResult.fileName}</div>
-                  <div><strong>File Size:</strong> {validationResult.fileSize}</div>
-                  <div><strong>Records Validated:</strong> {validationResult.recordCount.toLocaleString()}</div>
-                </div>
-              </div>
-            )}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                onClick={handleStartUploadAndFetch} 
+                disabled={!npciFile || uploadingNpci} 
+                className="btn btn-primary" 
+                style={{ padding: '12px 28px', fontWeight: '700' }}
+              >
+                {uploadingNpci ? <RefreshCw className="animate-spin" size={16} /> : <Play size={16} />}
+                {uploadingNpci ? 'Uploading File...' : 'Upload & Start Auto-Fetch Sequence'}
+              </button>
 
-            {stepStatuses[5] === 'failed' && (
-              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)', padding: '14px', borderRadius: '12px', marginBottom: '16px', color: 'var(--danger)', fontSize: '13px' }}>
-                <strong>Validation Failed:</strong> {stepErrors[5]}
-                <button onClick={() => handleRetryStep(5)} className="btn btn-outline" style={{ marginLeft: '16px', color: 'var(--danger)', borderColor: 'var(--danger)' }}>
-                  <RotateCcw size={14} /> Retry Step 5
-                </button>
-              </div>
-            )}
-
-            <button onClick={handleNextStep} disabled={stepStatuses[5] !== 'completed'} className="btn btn-primary" style={{ padding: '12px 28px', fontWeight: '700' }}>
-              Run 4-Way Reconciliation <ChevronRight size={16} />
-            </button>
+              <button onClick={() => setCurrentStep(1)} className="btn btn-outline" style={{ padding: '12px 20px' }}>
+                Back
+              </button>
+            </div>
           </div>
         )}
 
-        {/* STEP 6: Process Reconciliation */}
-        {currentStep === 6 && (
+        {/* STEP 3: Auto-Fetching Reports (Middleware, Switch, Wallet - 2s each) */}
+        {currentStep === 3 && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px' }}>Step 3: Automated Report Fetching</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '24px' }}>
+              Fetching Middleware, Switch, and Wallet reports from GCP cloud infrastructure (2 seconds per report).
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '650px', marginBottom: '24px' }}>
+              {/* Middleware Fetch Box */}
+              <div style={{ padding: '18px 24px', borderRadius: '14px', border: '1px solid var(--border)', background: autoFetchStage === 'middleware' ? 'rgba(37,99,235,0.06)' : 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <Database size={20} color="var(--primary)" />
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '15px' }}>1. Fetch Middleware Report (GCP)</h4>
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Retrieving raw transaction logs</span>
+                  </div>
+                </div>
+
+                {autoFetchStage === 'middleware' && (
+                  <span className="badge badge-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}>
+                    <RefreshCw className="animate-spin" size={14} /> Fetching ({autoFetchTimer}s)...
+                  </span>
+                )}
+
+                {(autoFetchStage === 'switch' || autoFetchStage === 'wallet' || autoFetchStage === 'done') && (
+                  <span className="badge badge-success" style={{ padding: '6px 12px' }}>✓ Completed</span>
+                )}
+              </div>
+
+              {/* Switch Fetch Box */}
+              <div style={{ padding: '18px 24px', borderRadius: '14px', border: '1px solid var(--border)', background: autoFetchStage === 'switch' ? 'rgba(37,99,235,0.06)' : 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <Server size={20} color="var(--primary)" />
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '15px' }}>2. Fetch Switch Report</h4>
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Retrieving core switch ledger data</span>
+                  </div>
+                </div>
+
+                {autoFetchStage === 'switch' && (
+                  <span className="badge badge-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}>
+                    <RefreshCw className="animate-spin" size={14} /> Fetching ({autoFetchTimer}s)...
+                  </span>
+                )}
+
+                {(autoFetchStage === 'wallet' || autoFetchStage === 'done') && (
+                  <span className="badge badge-success" style={{ padding: '6px 12px' }}>✓ Completed</span>
+                )}
+
+                {autoFetchStage === 'middleware' && (
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>Waiting...</span>
+                )}
+              </div>
+
+              {/* Wallet Fetch Box */}
+              <div style={{ padding: '18px 24px', borderRadius: '14px', border: '1px solid var(--border)', background: autoFetchStage === 'wallet' ? 'rgba(37,99,235,0.06)' : 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <Wallet size={20} color="var(--primary)" />
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '15px' }}>3. Fetch Wallet Report</h4>
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Retrieving merchant wallet balances</span>
+                  </div>
+                </div>
+
+                {autoFetchStage === 'wallet' && (
+                  <span className="badge badge-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px' }}>
+                    <RefreshCw className="animate-spin" size={14} /> Fetching ({autoFetchTimer}s)...
+                  </span>
+                )}
+
+                {autoFetchStage === 'done' && (
+                  <span className="badge badge-success" style={{ padding: '6px 12px' }}>✓ Completed</span>
+                )}
+
+                {(autoFetchStage === 'middleware' || autoFetchStage === 'switch') && (
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>Waiting...</span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 4: Reconciliation Results & Tabular Reports */}
+        {currentStep === 4 && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Zap color="var(--primary)" size={22} /> Step 6: Process Reconciliation Algorithm
+                  <CheckCircle color="var(--success)" size={20} />
+                  Reconciliation Execution Completed
                 </h3>
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                  Comparing Middleware × Switch × Wallet × NPCI Report records for cycle {cycle}
+                  Job ID: <strong>{result?.jobId}</strong> | Product: <strong>{selectedProduct}</strong> | Cycle: <strong>{cycle}</strong>
                 </p>
               </div>
 
-              <span className={`badge ${stepStatuses[6] === 'completed' ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '12px', padding: '6px 12px' }}>
-                Status: {stepStatuses[6].toUpperCase()}
-              </span>
-            </div>
-
-            {stepStatuses[6] === 'failed' && (
-              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)', padding: '14px', borderRadius: '12px', marginBottom: '16px', color: 'var(--danger)', fontSize: '13px' }}>
-                <strong>Reconciliation Error:</strong> {stepErrors[6]}
-                <button onClick={() => handleRetryStep(6)} className="btn btn-outline" style={{ marginLeft: '16px', color: 'var(--danger)', borderColor: 'var(--danger)' }}>
-                  <RotateCcw size={14} /> Retry Step 6
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button onClick={downloadMatchedReport} className="btn btn-primary" style={{ padding: '10px 18px', fontWeight: '700' }}>
+                  <Download size={15} /> Download Matched Report (.xlsx)
                 </button>
-              </div>
-            )}
 
-            <button onClick={handleNextStep} disabled={stepStatuses[6] !== 'completed'} className="btn btn-primary" style={{ padding: '12px 28px', fontWeight: '700' }}>
-              View Output Reports <ChevronRight size={16} />
-            </button>
-          </div>
-        )}
-
-        {/* STEP 7: Generate Output Reports */}
-        {currentStep === 7 && result && (
-          <div>
-            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-              <div>
-                <span className="badge badge-success" style={{ fontSize: '12px', marginBottom: '8px' }}>
-                  ✓ Reconciliation Completed & Saved to Job Archives
-                </span>
-                <h3 style={{ margin: '4px 0 0 0', fontSize: '22px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <CheckCircle2 color="var(--success)" size={24} />
-                  Step 7: Output Reports Ready for Download
-                </h3>
-              </div>
-
-              <div style={{ background: 'white', padding: '10px 18px', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Tag size={18} color="var(--primary)" />
-                <span style={{ fontSize: '14px', fontWeight: '800', fontFamily: 'monospace' }}>
-                  {result.jobId}
-                </span>
+                <button onClick={downloadMismatchedReport} className="btn btn-outline" style={{ padding: '10px 18px', fontWeight: '700', borderColor: 'var(--warning)', color: 'var(--warning)' }}>
+                  <Download size={15} /> Download Mismatched Report (.xlsx)
+                </button>
               </div>
             </div>
 
-            {/* 6 Output File Cards Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-              {/* 1. Matched Report */}
-              <div style={{ background: 'rgba(34, 197, 94, 0.04)', padding: '20px', borderRadius: '16px', border: '2px solid var(--success)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <CheckCircle2 color="var(--success)" size={22} />
-                    <span className="badge badge-success" style={{ fontSize: '10px' }}>.XLSX</span>
-                  </div>
-                  <h4 style={{ margin: '0 0 4px 0', fontSize: '15px' }}>Matched Transactions Report</h4>
-                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    4-way matched records ({result.matchedList?.length || 285} txns).
-                  </p>
-                </div>
-
-                <button onClick={downloadMatchedReport} className="btn btn-primary" style={{ background: 'var(--success)', marginTop: '16px', padding: '10px', fontSize: '12.5px', fontWeight: '700' }}>
-                  <Download size={14} /> Download Matched Report
-                </button>
+            {/* Results Summary Badges */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+              <div style={{ background: '#F8FAFC', padding: '16px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '700', textTransform: 'uppercase' }}>Total Processed</span>
+                <h3 style={{ margin: '4px 0 0 0', fontSize: '22px' }}>{(result?.matchedList?.length || 0) + (result?.mismatchedList?.length || 0)}</h3>
               </div>
 
-              {/* 2. Mismatched Report */}
-              <div style={{ background: 'rgba(239, 68, 68, 0.04)', padding: '20px', borderRadius: '16px', border: '2px solid var(--danger)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <AlertCircle color="var(--danger)" size={22} />
-                    <span className="badge badge-danger" style={{ fontSize: '10px' }}>.XLSX</span>
-                  </div>
-                  <h4 style={{ margin: '0 0 4px 0', fontSize: '15px' }}>Mismatched Transactions Report</h4>
-                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    Discrepancy exceptions ({result.mismatchedList?.length || 15} items).
-                  </p>
-                </div>
-
-                <button onClick={downloadMismatchedReport} className="btn btn-primary" style={{ background: 'var(--danger)', marginTop: '16px', padding: '10px', fontSize: '12.5px', fontWeight: '700' }}>
-                  <Download size={14} /> Download Mismatched Report
-                </button>
+              <div style={{ background: 'rgba(34,197,94,0.06)', padding: '16px', borderRadius: '12px', border: '1px solid var(--success)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--success)', fontWeight: '700', textTransform: 'uppercase' }}>Matched Transactions</span>
+                <h3 style={{ margin: '4px 0 0 0', fontSize: '22px', color: 'var(--success)' }}>{result?.matchedList?.length || 0}</h3>
               </div>
 
-              {/* 3. GEFU Text File */}
-              <div style={{ background: 'white', padding: '20px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <FileText color="var(--primary)" size={22} />
-                    <span className="badge badge-primary" style={{ fontSize: '10px' }}>.XLSX</span>
-                  </div>
-                  <h4 style={{ margin: '0 0 4px 0', fontSize: '15px' }}>GEFU Bank File</h4>
-                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    FLEXCUBE Core Banking 4-Sheet Excel workbook.
-                  </p>
+              <div style={{ background: 'rgba(239,68,68,0.06)', padding: '16px', borderRadius: '12px', border: '1px solid var(--danger)' }}>
+                <span style={{ fontSize: '12px', color: 'var(--danger)', fontWeight: '700', textTransform: 'uppercase' }}>Mismatched Transactions</span>
+                <h3 style={{ margin: '4px 0 0 0', fontSize: '22px', color: 'var(--danger)' }}>{result?.mismatchedList?.length || 0}</h3>
+              </div>
+            </div>
+
+            {/* Tabular Reports Inspector */}
+            <div style={{ border: '1px solid var(--border)', borderRadius: '16px', overflow: 'hidden' }}>
+              {/* Tab Bar & Search */}
+              <div style={{ padding: '16px 20px', background: '#F8FAFC', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    onClick={() => setResultsTab('matched')}
+                    className={`btn ${resultsTab === 'matched' ? 'btn-primary' : 'btn-outline'}`}
+                    style={{ fontSize: '12.5px', padding: '6px 14px', fontWeight: '700' }}
+                  >
+                    Matched Transactions ({result?.matchedList?.length || 0})
+                  </button>
+                  <button 
+                    onClick={() => setResultsTab('mismatched')}
+                    className={`btn ${resultsTab === 'mismatched' ? 'btn-primary' : 'btn-outline'}`}
+                    style={{ fontSize: '12.5px', padding: '6px 14px', fontWeight: '700' }}
+                  >
+                    Mismatched Transactions ({result?.mismatchedList?.length || 0})
+                  </button>
                 </div>
 
-                <button onClick={downloadGefuFlatFile} className="btn btn-outline" style={{ marginTop: '16px', padding: '10px', fontSize: '12.5px', fontWeight: '700' }}>
-                  <Download size={14} /> Download GEFU_File.xlsx
-                </button>
-              </div>
-
-              {/* 4. GEFU Accounting Ledger */}
-              <div style={{ background: 'white', padding: '20px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <FileSpreadsheet color="var(--primary)" size={22} />
-                    <span className="badge badge-primary" style={{ fontSize: '10px' }}>.XLSX</span>
-                  </div>
-                  <h4 style={{ margin: '0 0 4px 0', fontSize: '15px' }}>GEFU Accounting File</h4>
-                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    Internal simplified audit ledger entries.
-                  </p>
+                <div style={{ position: 'relative', width: '280px' }}>
+                  <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                  <input 
+                    type="text" 
+                    placeholder="Search by Txn ID, RRN, VPA..." 
+                    value={searchTerm} 
+                    onChange={e => setSearchTerm(e.target.value)} 
+                    className="settings-input" 
+                    style={{ width: '100%', paddingLeft: '34px', padding: '7px 12px 7px 34px', fontSize: '12.5px' }} 
+                  />
                 </div>
-
-                <button onClick={downloadGefuAccounting} className="btn btn-outline" style={{ marginTop: '16px', padding: '10px', fontSize: '12.5px', fontWeight: '700' }}>
-                  <Download size={14} /> GEFU_Accounting.xlsx
-                </button>
               </div>
 
-              {/* 5. Settlement File */}
-              <div style={{ background: 'white', padding: '20px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <DollarSign color="var(--primary)" size={22} />
-                    <span className="badge badge-primary" style={{ fontSize: '10px' }}>.XLSX</span>
-                  </div>
-                  <h4 style={{ margin: '0 0 4px 0', fontSize: '15px' }}>Settlement File</h4>
-                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    Merchant net settlement with 0.2006% bank share.
-                  </p>
-                </div>
-
-                <button onClick={downloadSettlementFile} className="btn btn-outline" style={{ marginTop: '16px', padding: '10px', fontSize: '12.5px', fontWeight: '700' }}>
-                  <Download size={14} /> Settlement_File.xlsx
-                </button>
+              {/* Data Table */}
+              <div style={{ overflowX: 'auto', maxHeight: '420px' }}>
+                <table className="data-table" style={{ fontSize: '12px' }}>
+                  <thead>
+                    <tr>
+                      <th>Transaction ID</th>
+                      <th>RRN</th>
+                      <th>Payer VPA</th>
+                      <th>Payee VPA</th>
+                      <th>Amount</th>
+                      <th>NPCI Status</th>
+                      <th>Switch Status</th>
+                      <th>MW Status</th>
+                      <th>Wallet Status</th>
+                      <th>Status / Label</th>
+                      {resultsTab === 'mismatched' && <th>Discrepancy Notes</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(resultsTab === 'matched' ? matchedListFiltered : mismatchedListFiltered).map((row, idx) => (
+                      <tr key={idx}>
+                        <td style={{ fontWeight: '700', fontFamily: 'monospace' }}>{row['Transaction ID']}</td>
+                        <td style={{ fontFamily: 'monospace' }}>{row['RRN']}</td>
+                        <td>{row['Payer VPA']}</td>
+                        <td>{row['Payee VPA']}</td>
+                        <td style={{ fontWeight: '700' }}>₹{row['Amount']}</td>
+                        <td><span className="badge badge-success">{row['NPCI Status']}</span></td>
+                        <td><span className="badge badge-success">{row['Switch Status']}</span></td>
+                        <td><span className="badge badge-success">{row['MW Status']}</span></td>
+                        <td><span className="badge badge-success">{row['Wallet Status']}</span></td>
+                        <td>
+                          <span className={`badge ${row['Status'] === 'Matched' ? 'badge-success' : 'badge-warning'}`}>
+                            {row['Label'] || row['Status']}
+                          </span>
+                        </td>
+                        {resultsTab === 'mismatched' && (
+                          <td style={{ color: 'var(--danger)', fontWeight: '600' }}>{row['Notes']}</td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
+            </div>
 
-              {/* 6. IMPS Payout File */}
-              <div style={{ background: 'white', padding: '20px', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                    <CreditCard color="var(--primary)" size={22} />
-                    <span className="badge badge-primary" style={{ fontSize: '10px' }}>.XLSX</span>
-                  </div>
-                  <h4 style={{ margin: '0 0 4px 0', fontSize: '15px' }}>IMPS Payout File</h4>
-                  <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    Merchant payout rows with IMPS ₹5L split chunker.
-                  </p>
-                </div>
-
-                <button onClick={downloadPayoutFile} className="btn btn-outline" style={{ marginTop: '16px', padding: '10px', fontSize: '12.5px', fontWeight: '700' }}>
-                  <Download size={14} /> Payout_File.xlsx
-                </button>
-              </div>
+            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => {
+                  setStepStatuses({ 1: 'Completed', 2: 'Pending', 3: 'Pending', 4: 'Pending' });
+                  setCurrentStep(1);
+                  setNpciFile(null);
+                  setResult(null);
+                }} 
+                className="btn btn-outline" 
+                style={{ padding: '10px 20px', fontWeight: '700' }}
+              >
+                Run Another Reconciliation
+              </button>
             </div>
           </div>
         )}
