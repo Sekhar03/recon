@@ -10,7 +10,11 @@ import {
   Layers, 
   DollarSign, 
   CreditCard,
-  ShieldCheck
+  Cloud,
+  Server,
+  RefreshCcw,
+  Check,
+  Zap
 } from 'lucide-react';
 import axios from 'axios';
 import { exportMultiSheetExcel } from '../utils/excelWorkbookExporter';
@@ -19,15 +23,13 @@ import { exportToExcel } from '../utils/excelExporter';
 const FullPipelineView = () => {
   const [cycle, setCycle] = useState('Cycle_1');
   const [loading, setLoading] = useState(false);
+  const [fetchModalStep, setFetchModalStep] = useState(0);
   const [result, setResult] = useState(null);
-  const [activeTab, setActiveTab] = useState('matched');
+  const [activeTab, setActiveTab] = useState('mismatched');
 
   const [files, setFiles] = useState({
     ntsl: null,
     npci: null,
-    switch: null,
-    middleware: null,
-    wallet: null,
     commission: null
   });
 
@@ -37,12 +39,25 @@ const FullPipelineView = () => {
 
   const handleRunPipeline = () => {
     setLoading(true);
-    axios.post('/api/v1/full-pipeline/run', { cycle })
-      .then(res => {
-        setResult(res.data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    setFetchModalStep(1);
+
+    // Simulate step-by-step GCP Bucket auto-fetching modal
+    setTimeout(() => setFetchModalStep(2), 700);
+    setTimeout(() => setFetchModalStep(3), 1400);
+    setTimeout(() => setFetchModalStep(4), 2100);
+
+    setTimeout(() => {
+      axios.post('/api/v1/full-pipeline/run', { cycle })
+        .then(res => {
+          setResult(res.data);
+          setLoading(false);
+          setFetchModalStep(0);
+        })
+        .catch(() => {
+          setLoading(false);
+          setFetchModalStep(0);
+        });
+    }, 2800);
   };
 
   // Download Helpers for 6 Output Files
@@ -50,14 +65,14 @@ const FullPipelineView = () => {
     if (!result) return;
     exportMultiSheetExcel([
       { name: 'Matched_Transactions', type: 'data', columns: ['Transaction ID', 'RRN', 'Payer VPA', 'Payee VPA', 'Amount', 'NPCI Status', 'Switch Status', 'MW Status', 'Wallet Status', 'Status'], data: result.matchedList }
-    ], `Matched_Transactions_${cycle}`);
+    ], `Matched_Transactions_Report_${cycle}`);
   };
 
   const downloadMismatchedReport = () => {
     if (!result) return;
     exportMultiSheetExcel([
       { name: 'Mismatched_Transactions', type: 'data', columns: ['Transaction ID', 'RRN', 'Payer VPA', 'Payee VPA', 'Amount', 'NPCI Status', 'Switch Status', 'MW Status', 'Wallet Status', 'Label', 'Notes'], data: result.mismatchedList }
-    ], `Mismatched_Transactions_${cycle}`);
+    ], `Mismatched_Transactions_Report_${cycle}`);
   };
 
   const downloadGefuFlatFile = () => {
@@ -74,7 +89,7 @@ const FullPipelineView = () => {
 
   const downloadGefuAccountingLedger = () => {
     if (!result) return;
-    exportToExcel(result.gefuAccountingLedger, `GEFU_Accounting_Ledger_${cycle}`);
+    exportToExcel(result.gefuAccountingLedger, `GEFU_Accounting_File_${cycle}`);
   };
 
   const downloadSettlementFile = () => {
@@ -88,38 +103,114 @@ const FullPipelineView = () => {
   };
 
   return (
-    <div className="glass-card animate-fade-in" style={{ padding: '32px' }}>
+    <div className="glass-card animate-fade-in" style={{ padding: '32px', position: 'relative' }}>
+      {/* GCP Auto-Fetch Modal */}
+      {fetchModalStep > 0 && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div className="glass-card animate-fade-in" style={{ background: 'white', padding: '36px', width: '480px', borderRadius: '24px', textAlign: 'center' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(37, 99, 235, 0.1)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
+              <Cloud className="spinning" color="var(--primary)" size={32} />
+            </div>
+
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '20px' }}>Auto-Fetching from GCP Bucket & SFTP</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '24px' }}>
+              Connecting to <code style={{ color: 'var(--primary)', background: '#F1F5F9', padding: '2px 6px', borderRadius: '4px' }}>gs://iserveu-recon-bucket/</code> for {cycle}...
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', textAlign: 'left', background: 'var(--bg-hover)', padding: '20px', borderRadius: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
+                {fetchModalStep >= 1 ? <CheckCircle2 color="var(--success)" size={18} /> : <RefreshCcw className="spinning" size={18} color="var(--text-secondary)" />}
+                <span style={{ fontWeight: fetchModalStep >= 1 ? '600' : 'normal' }}>Ingesting Middleware Report from GCP Bucket</span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
+                {fetchModalStep >= 2 ? <CheckCircle2 color="var(--success)" size={18} /> : (fetchModalStep === 1 ? <RefreshCcw className="spinning" size={18} color="var(--text-secondary)" /> : <div style={{ width: '18px' }} />)}
+                <span style={{ fontWeight: fetchModalStep >= 2 ? '600' : 'normal' }}>Syncing Wallet System Logs from GCP Bucket</span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
+                {fetchModalStep >= 3 ? <CheckCircle2 color="var(--success)" size={18} /> : (fetchModalStep === 2 ? <RefreshCcw className="spinning" size={18} color="var(--text-secondary)" /> : <div style={{ width: '18px' }} />)}
+                <span style={{ fontWeight: fetchModalStep >= 3 ? '600' : 'normal' }}>Pulling Switch Report from SFTP Server</span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
+                {fetchModalStep >= 4 ? <CheckCircle2 color="var(--success)" size={18} /> : (fetchModalStep === 3 ? <RefreshCcw className="spinning" size={18} color="var(--text-secondary)" /> : <div style={{ width: '18px' }} />)}
+                <span style={{ fontWeight: fetchModalStep >= 4 ? '600' : 'normal' }}>Reconciling 4-Way Records & Generating Reports...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ marginBottom: '28px' }}>
         <h2 style={{ fontSize: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Layers color="var(--primary)" size={24} />
-          Complete UPI Reconciliation & Settlement Pipeline
+          UPI Reconciliation & Settlement Hub
         </h2>
         <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px' }}>
-          Collect 6 Input Files → Run 4-Way Match & Commission Recon → Generate 6 Output Files (2 Recon Reports + 4 Bank Settlement Files).
+          Middleware, Wallet, and Switch logs are <b>auto-ingested from GCP Bucket & SFTP</b>. Upload remaining portal files or click Run to auto-generate the 2 Recon files and 4 Settlement files.
         </p>
       </div>
 
-      {/* Input Files Collector Panel (6 Inputs) */}
+      {/* Input File Collectors & Auto-Ingested Status Panel */}
       <div style={{ background: 'var(--bg-hover)', padding: '24px', borderRadius: '16px', border: '1px solid var(--border)', marginBottom: '32px' }}>
         <h4 style={{ margin: '0 0 16px 0', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Upload size={16} /> Step 1: Upload 6 Input Files (or Use Instant Sample Data)
+          <Zap color="var(--warning)" size={16} /> Input Files Status & GCP Auto-Ingestion
         </h4>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+          {/* Auto-Fetched Files (GCP & SFTP) */}
+          <div style={{ padding: '16px', background: 'rgba(37, 99, 235, 0.05)', borderRadius: '12px', border: '1px solid rgba(37, 99, 235, 0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <p style={{ margin: 0, fontWeight: '700', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Cloud size={14} color="var(--primary)" /> Middleware Report
+              </p>
+              <span className="badge badge-success" style={{ fontSize: '10px' }}>Auto-Ingested GCP</span>
+            </div>
+            <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-secondary)' }}>gs://iserveu-recon-bucket/middleware/</p>
+          </div>
+
+          <div style={{ padding: '16px', background: 'rgba(37, 99, 235, 0.05)', borderRadius: '12px', border: '1px solid rgba(37, 99, 235, 0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <p style={{ margin: 0, fontWeight: '700', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Cloud size={14} color="var(--primary)" /> Wallet Report
+              </p>
+              <span className="badge badge-success" style={{ fontSize: '10px' }}>Auto-Ingested GCP</span>
+            </div>
+            <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-secondary)' }}>gs://iserveu-recon-bucket/wallet/</p>
+          </div>
+
+          <div style={{ padding: '16px', background: 'rgba(37, 99, 235, 0.05)', borderRadius: '12px', border: '1px solid rgba(37, 99, 235, 0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <p style={{ margin: 0, fontWeight: '700', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Server size={14} color="var(--primary)" /> Switch Report
+              </p>
+              <span className="badge badge-success" style={{ fontSize: '10px' }}>SFTP Auto-Pulled</span>
+            </div>
+            <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-secondary)' }}>sftp://switch.iserveu.in/logs/</p>
+          </div>
+
+          {/* Manual Downloads Upload Fields */}
           {[
-            { key: 'ntsl', label: '1. NTSL Report', source: 'Downloaded from NPCI' },
-            { key: 'npci', label: '2. NPCI Report', source: 'NPCI URCS Portal Download' },
-            { key: 'switch', label: '3. Switch Report', source: 'Switching System SFTP' },
-            { key: 'middleware', label: '4. Middleware Report', source: 'Internal iSU System (GCP Bucket)' },
-            { key: 'wallet', label: '5. Wallet Report', source: 'Wallet System (GCP Bucket)' },
-            { key: 'commission', label: '6. Commission Report', source: 'Internal Commission System' },
+            { key: 'ntsl', label: 'NTSL Report', source: 'Downloaded from NPCI' },
+            { key: 'npci', label: 'NPCI URCS Report', source: 'NPCI URCS Portal Manual Download' },
+            { key: 'commission', label: 'Commission Report', source: 'Exported from Internal System' },
           ].map(inp => (
             <div key={inp.key} style={{ padding: '16px', background: 'white', borderRadius: '12px', border: '1px solid var(--border)' }}>
               <p style={{ margin: 0, fontWeight: '700', fontSize: '13px' }}>{inp.label}</p>
-              <p style={{ margin: '2px 0 12px 0', fontSize: '11px', color: 'var(--text-secondary)' }}>{inp.source}</p>
+              <p style={{ margin: '2px 0 10px 0', fontSize: '11px', color: 'var(--text-secondary)' }}>{inp.source}</p>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--primary)', cursor: 'pointer', fontWeight: '600' }}>
-                <Upload size={14} /> {files[inp.key] ? files[inp.key] : 'Select File (.csv / .xls)'}
+                <Upload size={14} /> {files[inp.key] ? files[inp.key] : 'Upload CSV / XLS (Optional)'}
                 <input type="file" style={{ display: 'none' }} onChange={e => e.target.files[0] && handleFileUpload(inp.key, e.target.files[0])} />
               </label>
             </div>
@@ -137,17 +228,42 @@ const FullPipelineView = () => {
           </div>
 
           <button onClick={handleRunPipeline} disabled={loading} className="btn btn-primary" style={{ padding: '12px 32px', fontSize: '14px', fontWeight: '700' }}>
-            {loading ? <Play className="spinning" size={18} /> : <Play size={18} />}
-            {loading ? 'Processing Reconciliation & Generating Outputs...' : 'Run Complete Pipeline'}
+            {loading ? <RefreshCcw className="spinning" size={18} /> : <Play size={18} />}
+            {loading ? 'Reconciling...' : 'Run Reconciliation & Generate Reports'}
           </button>
         </div>
       </div>
 
-      {/* Output Files Download Panel (6 Outputs) */}
+      {/* Output Files Download Panel (Reconciliation + Settlement) */}
       {result && (
         <div className="animate-fade-in">
+          {/* Primary Highlight: 2 Core Reconciliation Files */}
+          <div style={{ background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(15, 23, 42, 0.04) 100%)', padding: '24px', borderRadius: '20px', border: '2px solid var(--primary)', marginBottom: '28px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileSpreadsheet color="var(--primary)" size={22} />
+                  Reconciliation Completed — 2 Recon Files Generated
+                </h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  Download the official Matched and Mismatched Excel reports generated directly from the 4-Way Reconciliation Engine.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button onClick={downloadMatchedReport} className="btn btn-primary" style={{ background: 'var(--success)', padding: '12px 20px', fontWeight: '700' }}>
+                  <CheckCircle2 size={18} /> Download Matched_Transactions_Report.xlsx
+                </button>
+                <button onClick={downloadMismatchedReport} className="btn btn-primary" style={{ background: 'var(--danger)', padding: '12px 20px', fontWeight: '700' }}>
+                  <AlertCircle size={18} /> Download Mismatched_Transactions_Report.xlsx
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Secondary Group: All 6 Output Files Panel */}
           <h3 style={{ fontSize: '18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <CheckCircle2 color="var(--success)" size={20} /> Generated Output Files (6 Reports & Files Ready)
+            <CheckCircle2 color="var(--success)" size={20} /> All Generated Output Files (6 Download Buttons)
           </h3>
 
           {/* KPI Summary */}
@@ -175,21 +291,21 @@ const FullPipelineView = () => {
             {/* Recon Files Group */}
             <div style={{ background: 'white', padding: '20px', borderRadius: '14px', border: '1px solid var(--border)' }}>
               <h4 style={{ margin: '0 0 14px 0', fontSize: '15px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <FileSpreadsheet size={16} /> Reconciliation Output Files (2 Reports)
+                <FileSpreadsheet size={16} /> Reconciliation Reports (2 Files)
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <button onClick={downloadMatchedReport} className="btn btn-outline" style={{ justifyContent: 'space-between', width: '100%', padding: '12px' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                     <CheckCircle2 size={16} color="var(--success)" /> Matched Transactions File
                   </span>
-                  <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '700' }}>Download Matched_Transactions.xlsx</span>
+                  <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '700' }}>Matched_Transactions_Report.xlsx</span>
                 </button>
 
                 <button onClick={downloadMismatchedReport} className="btn btn-outline" style={{ justifyContent: 'space-between', width: '100%', padding: '12px' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
                     <AlertCircle size={16} color="var(--danger)" /> Mismatched Transactions File
                   </span>
-                  <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '700' }}>Download Mismatched_Transactions.xlsx</span>
+                  <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '700' }}>Mismatched_Transactions_Report.xlsx</span>
                 </button>
               </div>
             </div>
@@ -225,11 +341,11 @@ const FullPipelineView = () => {
 
           {/* Sub-tabs to preview records */}
           <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--border)', marginBottom: '20px' }}>
-            <button className={`btn ${activeTab === 'matched' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('matched')}>
-              <CheckCircle2 size={16} /> Matched Records ({result.matchedList.length})
-            </button>
             <button className={`btn ${activeTab === 'mismatched' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('mismatched')}>
               <AlertCircle size={16} /> Mismatched Exceptions ({result.mismatchedList.length})
+            </button>
+            <button className={`btn ${activeTab === 'matched' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('matched')}>
+              <CheckCircle2 size={16} /> Matched Records ({result.matchedList.length})
             </button>
             <button className={`btn ${activeTab === 'settlement' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setActiveTab('settlement')}>
               <DollarSign size={16} /> Merchant Settlement Rows ({result.settlementRows.length})
