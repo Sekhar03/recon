@@ -1,7 +1,8 @@
 /**
  * 3.3 NTSL -> GEFU Generation Module
- * Parses NTSL fee lines, creates 4-sheet staging pipeline, and formats fixed-width flat file
- * with control totals validation header/detail/footer records.
+ * FLEXCUBE Core Banking Flat File Generator (GEFU = Generic External File Upload)
+ * Implements 4-sheet staging pipeline: Input -> Formatter_Working -> Output -> Field_Formats
+ * Emits exact fixed-width 558-char detail strings with Header (1) and Footer (3) control totals.
  */
 
 export function detectOOXMLFormat(fileBuffer, fileName = '') {
@@ -17,38 +18,8 @@ export function detectOOXMLFormat(fileBuffer, fileName = '') {
   return { realFormat: 'xlsx', declaredExtension: 'xlsx', isMismatch: false };
 }
 
-export const GEFU_FIELD_SPECS = [
-  { field: 'accountType', width: 2, pad: '0', align: 'right' },
-  { field: 'accountNumber', width: 16, pad: ' ', align: 'right' },
-  { field: 'branchCode', width: 4, pad: '0', align: 'right' },
-  { field: 'txnCode', width: 5, pad: '0', align: 'right' }, // 01008 for Dr, 01408 for Cr
-  { field: 'txnDate', width: 8, pad: '0', align: 'right' }, // YYYYMMDD
-  { field: 'drCr', width: 2, pad: ' ', align: 'left' },
-  { field: 'valueDate', width: 8, pad: '0', align: 'right' },
-  { field: 'amtLcy', width: 14, pad: '0', align: 'right' }, // Paise (amt * 100)
-  { field: 'amtTcy', width: 14, pad: '0', align: 'right' },
-  { field: 'rateCon', width: 8, pad: '0', align: 'right' },
-  { field: 'refNo', width: 12, pad: '0', align: 'right' },
-  { field: 'refDocNo', width: 12, pad: '0', align: 'right' },
-  { field: 'description', width: 40, pad: ' ', align: 'left' },
-  { field: 'benefIc', width: 16, pad: ' ', align: 'left' },
-  { field: 'benefName', width: 120, pad: ' ', align: 'left' },
-  { field: 'benefAdd1', width: 35, pad: ' ', align: 'left' },
-  { field: 'benefAdd2', width: 35, pad: ' ', align: 'left' },
-  { field: 'benefAdd3', width: 35, pad: ' ', align: 'left' },
-  { field: 'city', width: 35, pad: ' ', align: 'left' },
-  { field: 'state', width: 35, pad: ' ', align: 'left' },
-  { field: 'country', width: 35, pad: ' ', align: 'left' },
-  { field: 'zip', width: 35, pad: ' ', align: 'left' },
-  { field: 'option', width: 2, pad: '0', align: 'right' },
-  { field: 'issuerCode', width: 5, pad: '0', align: 'right' },
-  { field: 'payableBranch', width: 4, pad: '0', align: 'right' },
-  { field: 'flagFuture', width: 1, pad: ' ', align: 'left' },
-  { field: 'misCode', width: 16, pad: '0', align: 'right' }
-];
-
 function formatField(value, width, padChar = ' ', align = 'left') {
-  let str = String(value || '');
+  let str = String(value === null || value === undefined ? '' : value);
   if (str.length > width) {
     return str.substring(0, width);
   }
@@ -59,78 +30,31 @@ function formatField(value, width, padChar = ' ', align = 'left') {
 }
 
 export function generateGefuFile(ntslData, processDateStr = new Date().toISOString().split('T')[0].replace(/-/g, '')) {
-  // Sample NTSL calculation
-  const totalGrossAmount = ntslData?.grossAmount || 1245000.50;
+  const totalGrossAmount = ntslData?.grossAmount || 10790362.17;
   const switchingFee = ntslData?.switchingFee || 1245.00;
   const switchingFeeGst = ntslData?.switchingFeeGst || 224.10;
   const surchargeFee = ntslData?.surchargeFee || 500.00;
-  const bankShareRate = 0.002006;
+  const bankShareRate = 0.002006; // 0.2006%
   const bankShareAmt = totalGrossAmount * bankShareRate;
   const netSettlementAmt = totalGrossAmount - (switchingFee + switchingFeeGst + surchargeFee);
 
-  // Staging entries (Input sheet equivalent)
+  // Staging Table (Sheet 1: Input equivalent)
   const stagingTable = [
-    {
-      entryName: 'Net Settlement Amount',
-      accountNumber: '9908123456789012',
-      accountName: 'NPCI UPI Settlement Pool A/C',
-      branchCode: '0012',
-      drCr: 'CR',
-      amount: netSettlementAmt,
-      description: 'UPI Net Settlement Credit to Pool',
-      refNo: processDateStr + '001'
-    },
-    {
-      entryName: 'NPCI Switching Fee',
-      accountNumber: '9908123456789013',
-      accountName: 'NPCI Switching Fee Expense A/C',
-      branchCode: '0012',
-      drCr: 'DR',
-      amount: switchingFee,
-      description: 'NPCI Switching Fee Debit',
-      refNo: processDateStr + '002'
-    },
-    {
-      entryName: 'GST on Switching Fee',
-      accountNumber: '9908123456789014',
-      accountName: 'Input GST Receivable A/C',
-      branchCode: '0012',
-      drCr: 'DR',
-      amount: switchingFeeGst,
-      description: 'GST on NPCI Switching Fee',
-      refNo: processDateStr + '003'
-    },
-    {
-      entryName: 'Bank Share Commission',
-      accountNumber: '9908123456789015',
-      accountName: 'Bank UPI Revenue A/C',
-      branchCode: '0012',
-      drCr: 'CR',
-      amount: bankShareAmt,
-      description: 'Bank Share @ 0.2006%',
-      refNo: processDateStr + '004'
-    },
-    {
-      entryName: 'Final Merchant Settlement Amount',
-      accountNumber: '9908123456789016',
-      accountName: 'Merchant Settlement Clearing A/C',
-      branchCode: '0012',
-      drCr: 'DR',
-      amount: netSettlementAmt - bankShareAmt,
-      description: 'Final Settlement Allocation to Merchants',
-      refNo: processDateStr + '005'
-    }
+    { accountType: '3', accountNumber: '208100063', branchCode: '8888', drCr: 'D', amount: netSettlementAmt, description: `UPI_NPT_FinalSettledAmt_${processDateStr}` },
+    { accountType: '3', accountNumber: '208100064', branchCode: '8888', drCr: 'C', amount: netSettlementAmt - bankShareAmt, description: `UPI_Merchant_Settlement_Credit_${processDateStr}` },
+    { accountType: '3', accountNumber: '208100065', branchCode: '8888', drCr: 'C', amount: bankShareAmt, description: `Bank_Share_Revenue_02006_${processDateStr}` },
+    { accountType: '3', accountNumber: '208100066', branchCode: '8888', drCr: 'D', amount: switchingFee, description: `NPCI_Switching_Fee_Debit_${processDateStr}` },
+    { accountType: '3', accountNumber: '208100067', branchCode: '8888', drCr: 'D', amount: switchingFeeGst, description: `GST_on_NPCI_Switching_Fee_${processDateStr}` }
   ];
 
-  // Control totals initializers
   let noOfDr = 0;
   let amtOfDrPaise = 0;
   let noOfCr = 0;
   let amtOfCrPaise = 0;
 
-  // Formatter Working & Output detail lines
+  // Formatter Working (Sheet 2) & Output Detail Strings (Sheet 3)
   const detailRecords = stagingTable.map(row => {
-    const isDr = row.drCr === 'DR';
+    const isDr = row.drCr === 'D';
     const amtPaise = Math.round(row.amount * 100);
     const txnCode = isDr ? '01008' : '01408';
 
@@ -143,55 +67,57 @@ export function generateGefuFile(ntslData, processDateStr = new Date().toISOStri
     }
 
     const formattedRow = [
-      formatField('01', 2, '0', 'right'), // accountType
-      formatField(row.accountNumber, 16, ' ', 'right'),
-      formatField(row.branchCode, 4, '0', 'right'),
-      formatField(txnCode, 5, '0', 'right'),
-      formatField(processDateStr, 8, '0', 'right'),
-      formatField(row.drCr, 2, ' ', 'left'),
-      formatField(processDateStr, 8, '0', 'right'),
-      formatField(amtPaise, 14, '0', 'right'),
-      formatField(amtPaise, 14, '0', 'right'),
-      formatField(100, 8, '0', 'right'),
-      formatField(row.refNo, 12, '0', 'right'),
-      formatField(row.refNo, 12, '0', 'right'),
-      formatField(row.description, 40, ' ', 'left'),
-      formatField('BENEF001', 16, ' ', 'left'),
-      formatField('NSDL PAYMENTS BANK', 120, ' ', 'left'),
-      formatField('NSDL TOWER', 35, ' ', 'left'),
-      formatField('BKC MUMBAI', 35, ' ', 'left'),
-      formatField('MAHARASHTRA', 35, ' ', 'left'),
-      formatField('MUMBAI', 35, ' ', 'left'),
-      formatField('MAHARASHTRA', 35, ' ', 'left'),
-      formatField('INDIA', 35, ' ', 'left'),
-      formatField('400051', 35, ' ', 'left'),
-      formatField('01', 2, '0', 'right'),
-      formatField('00100', 5, '0', 'right'),
-      formatField('0012', 4, '0', 'right'),
-      formatField('N', 1, ' ', 'left'),
-      formatField('MIS001', 16, '0', 'right'),
-      '~~END~~'
+      formatField(row.accountType === '3' ? '03' : '01', 2, '0', 'right'), // 1. Account Type (2 chars)
+      formatField(row.accountNumber, 16, ' ', 'right'),                   // 2. Account Number (16 chars, right-aligned)
+      formatField(row.branchCode, 4, '0', 'right'),                       // 3. Branch Code (4 chars)
+      formatField(txnCode, 5, '0', 'right'),                              // 4. Txn Code (5 chars)
+      formatField(processDateStr, 8, '0', 'right'),                       // 5. Txn Date (8 chars YYYYMMDD)
+      formatField(row.drCr, 1, ' ', 'left'),                              // 6. Dr/Cr (1 char)
+      formatField(processDateStr, 8, '0', 'right'),                       // 7. Value Date (8 chars)
+      formatField('00001', 5, '0', 'right'),                              // 8. Txn CCY (5 chars)
+      formatField(amtPaise, 14, '0', 'right'),                            // 9. Amt LCY (14 chars in paise)
+      formatField(amtPaise, 14, '0', 'right'),                            // 10. Amt TCY (14 chars in paise)
+      formatField('00000100', 8, '0', 'right'),                           // 11. Rate Con (8 chars)
+      formatField('000000000000', 12, '0', 'right'),                      // 12. Ref No (12 chars)
+      formatField('000000000000', 12, '0', 'right'),                      // 13. Ref Doc No (12 chars)
+      formatField(row.description, 40, ' ', 'left'),                      // 14. Transaction Description (40 chars)
+      formatField('', 16, ' ', 'left'),                                   // 15. Benef IC (16 spaces)
+      formatField('', 120, ' ', 'left'),                                  // 16. Benef Name (120 spaces)
+      formatField('', 35, ' ', 'left'),                                   // 17. Benef Add 1 (35 spaces)
+      formatField('', 35, ' ', 'left'),                                   // 18. Benef Add 2 (35 spaces)
+      formatField('', 35, ' ', 'left'),                                   // 19. Benef Add 3 (35 spaces)
+      formatField('', 35, ' ', 'left'),                                   // 20. Benef City (35 spaces)
+      formatField('', 35, ' ', 'left'),                                   // 21. Benef State (35 spaces)
+      formatField('', 35, ' ', 'left'),                                   // 22. Benef Cntry (35 spaces)
+      formatField('', 35, ' ', 'left'),                                   // 23. Benef Zip (35 spaces)
+      formatField('30', 2, '0', 'right'),                                 // 24. Option (2 chars)
+      '~~END~~',                                                          // 25. Core Delimiter Marker
+      formatField('00000', 5, '0', 'right'),                              // 26. Issuer Code (5 chars)
+      formatField('0000', 4, '0', 'right'),                               // 27. Payable Branch (4 chars)
+      formatField('N', 1, ' ', 'left'),                                   // 28. Flag Future dated (1 char)
+      formatField('0000000000000000', 16, '0', 'right'),                  // 29. Mis Code (16 chars)
+      '~~END~~'                                                           // 30. End Record Delimiter Marker
     ].join('');
 
+    // Detail record starts with '2'
     return `2${formattedRow}`;
   });
 
-  // Header Record
+  // Header Record: '1' + PROCESS_DATE (Length 9)
   const headerRecord = `1${processDateStr}`;
 
-  // Footer Record with Control Totals
-  const footerRecord = `3${formatField(noOfDr, 6, '0', 'right')}${formatField(amtOfDrPaise, 14, '0', 'right')}${formatField(noOfCr, 6, '0', 'right')}${formatField(amtOfCrPaise, 14, '0', 'right')}`;
+  // Footer Record: '3' + No.ofDr (9 digits) + Amt.ofDr in paise (15 digits) + No.ofCr (9 digits) + Amt.ofCr in paise (15 digits) (Length 49)
+  const footerRecord = `3${formatField(noOfDr, 9, '0', 'right')}${formatField(amtOfDrPaise, 15, '0', 'right')}${formatField(noOfCr, 9, '0', 'right')}${formatField(amtOfCrPaise, 15, '0', 'right')}`;
 
   const gefuFlatFileContent = [headerRecord, ...detailRecords, footerRecord].join('\n');
 
-  // Verify control totals before return
   const verified = (noOfDr + noOfCr === stagingTable.length) && (amtOfDrPaise > 0 || amtOfCrPaise > 0);
 
-  // Accounting Ledger Projection
+  // Accounting Ledger Projection (Sheet 1/Sheet 4 projection)
   const accountingLedger = stagingTable.map(s => ({
     accountNumber: s.accountNumber,
-    accountName: s.accountName,
-    drCr: s.drCr,
+    accountName: s.description,
+    drCr: s.drCr === 'D' ? 'DR' : 'CR',
     amount: s.amount,
     remarks: s.description
   }));
