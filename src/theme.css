@@ -1,0 +1,26 @@
+:root {
+  /* iServeU Colors */
+  --primary: #119db0;        /* Core Teal */
+  --primary-dark: #0e8696;
+  --secondary: #1b2a3e;     /* Deep Navy */
+  --bg-main: #f8fafc;       /* Light neutral background */
+  --bg-card: #ffffff;
+  --bg-hover: #f1f5f9;
+  
+  --text-primary: #1b2a3e;  /* Navy for primary text */
+  --text-secondary: #475569; /* Darker Slate for improved contrast */
+  --border: #e2e8f0;
+  
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+
+  --primary-glow: rgba(17, 157, 176, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(17, 157, 176, 0.1);
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}

@@ -1,0 +1,5 @@
+/* Tailwind base directives */
+/* Note: Tailwind must be installed via npm for these to work during build */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
