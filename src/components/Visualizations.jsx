@@ -192,7 +192,7 @@ const Visualizations = () => {
       {/* ── RULE DISTRIBUTION ── */}
       {activeTab === 'rules' && (
         <div className="glass-card" style={{ padding: '32px' }}>
-          <h3 style={{ fontSize: '18px', marginBottom: '6px' }}>§3.2 Adjustment Rule Distribution</h3>
+          <h3 style={{ fontSize: '18px', marginBottom: '6px' }}>Adjustment Rule Distribution</h3>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '28px' }}>How 4-way match rule engine classified transactions today</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
             {RULE_BREAKDOWN.map((r, i) => (
@@ -215,7 +215,7 @@ const Visualizations = () => {
         <div className="grid-2">
           <div className="glass-card" style={{ padding: '28px' }}>
             <h3 style={{ fontSize: '17px', marginBottom: '6px' }}>Settlement Total vs GEFU Final Amount</h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>§3.6 Hard Gate Validation — must match exactly (≤ ₹1 variance allowed)</p>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>Hard Gate Validation — must match exactly (≤ ₹1 variance allowed)</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {CYCLE_DATA.map((c, i) => {
                 const gefuAmt = c.netSettled * 0.998; // slight simulated difference

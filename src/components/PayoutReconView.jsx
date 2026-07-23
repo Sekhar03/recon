@@ -39,7 +39,7 @@ const PayoutReconView = () => {
         <div>
           <h2 style={{ fontSize: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <FileCheck color="var(--primary)" size={24} />
-            Payout 3-Way Reconciliation Engine (§3.8)
+            Payout 3-Way Reconciliation Engine
           </h2>
           <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px' }}>
             Automated 3-way matching across iServeU Payout Report, Bank MIS Report, and Bank Statement.

@@ -28,7 +28,7 @@ const GefuView = ({ jobId }) => {
         });
       });
 
-    // Check OOXML format status (§2.6)
+    // Check OOXML format status
     axios.post('/api/v1/files/validate-ooxml', { fileName: 'NTSL_Daily_Report.xls' })
       .then(res => setOoxmlStatus(res.data));
   }, [jobId]);
@@ -62,7 +62,7 @@ const GefuView = ({ jobId }) => {
         <div>
           <h2 style={{ fontSize: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <FileText color="var(--primary)" size={24} />
-            NTSL → GEFU Fixed-Width Bank File Generator (§2.7 & §3.3)
+            NTSL → GEFU Fixed-Width Bank File Generator
           </h2>
           <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px' }}>
             4-sheet pipeline emitting positional fixed-width flat files (`Header 1`, `Detail 2`, `Footer 3`) with pre-flight control total verification.
@@ -100,7 +100,7 @@ const GefuView = ({ jobId }) => {
         </div>
       )}
 
-      {/* Control Totals Validation Banner (§2.7 & §3.3) */}
+      {/* Control Totals Validation Banner */}
       <div style={{ 
         background: 'var(--bg-hover)', 
         borderRadius: '16px', 

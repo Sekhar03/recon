@@ -149,7 +149,7 @@ export function generateSettlementAndPayoutFiles(matchedTxns, gefuFinalSettlemen
   const settlementRows = Array.from(grouped.values()).map(g => calculateMerchantSettlement(g));
   const totalNetSettlement = settlementRows.reduce((acc, r) => acc + r.netSettlement, 0);
 
-  // Hard Gate Check (§3.6) against GEFU Final Settlement Amount
+  // Hard Gate Check against GEFU Final Settlement Amount
   let gatePassed = true;
   let variance = 0;
   if (gefuFinalSettlementAmount !== null && gefuFinalSettlementAmount !== undefined) {

@@ -23,7 +23,7 @@ const CycleManager = ({ onTriggerRun }) => {
         <div>
           <h2 style={{ fontSize: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Clock className="icon-pulse" color="var(--primary)" size={24} />
-            NPCI → Internal Cycle Scheduler (§3.1)
+            NPCI → Internal Cycle Scheduler
           </h2>
           <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px' }}>
             Automated ingestion and cut-off orchestration mapping 10 daily NPCI sub-cycles into 3 internal settlement cycles.

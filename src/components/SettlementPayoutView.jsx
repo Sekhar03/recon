@@ -64,7 +64,7 @@ const SettlementPayoutView = ({ jobId }) => {
         <div>
           <h2 style={{ fontSize: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Layers color="var(--primary)" size={24} />
-            Settlement Calculation & IMPS Payout File Engine (§2.9 & §3.5–3.7)
+            Settlement Calculation & IMPS Payout File Engine
           </h2>
           <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px' }}>
             Automates the 4-sheet settlement pipeline, calculates Bank Share @ 0.2006%, enforces Hard Gate cross-check against GEFU, and applies ₹5L IMPS split logic.
@@ -80,7 +80,7 @@ const SettlementPayoutView = ({ jobId }) => {
         </div>
       </div>
 
-      {/* Cross-Check Hard Gate Banner (§3.6) */}
+      {/* Cross-Check Hard Gate Banner */}
       <div style={{
         background: settlementData?.gatePassed ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)',
         border: `1px solid ${settlementData?.gatePassed ? 'var(--success)' : 'var(--danger)'}`,
@@ -191,7 +191,7 @@ const SettlementPayoutView = ({ jobId }) => {
         </div>
       )}
 
-      {/* Sheet 4: Payout File with IMPS ₹5L Split Rules (§2.9 & §3.7) */}
+      {/* Sheet 4: Payout File with IMPS ₹5L Split Rules */}
       {activeSheet === 'Sheet4' && (
         <div>
           <div style={{ padding: '16px', background: 'rgba(17, 157, 176, 0.08)', borderRadius: '12px', marginBottom: '20px', fontSize: '13px', color: 'var(--secondary)' }}>

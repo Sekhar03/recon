@@ -177,7 +177,7 @@ const Wizard = ({ onComplete }) => {
               </div>
 
               <div>
-                <label className="input-label">Internal Settlement Cycle (§3.1)</label>
+                <label className="input-label">Internal Settlement Cycle</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
                   {INTERNAL_CYCLES.map(cycle => (
                     <button 

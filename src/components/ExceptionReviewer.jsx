@@ -55,7 +55,7 @@ const ExceptionReviewer = () => {
         <div>
           <h2 style={{ fontSize: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <ShieldAlert color="var(--warning)" size={24} />
-            Reviewer Exception Console & Audit Log (§3.2, §3.8 & §4)
+            Reviewer Exception Console & Audit Log
           </h2>
           <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px' }}>
             Interactive disposition dashboard for 4-way transaction mismatches and 3-way payout discrepancies with immutable audit logging.

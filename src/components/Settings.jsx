@@ -90,7 +90,7 @@ const Settings = () => {
 
               <div style={{ padding: '20px', background: 'var(--bg-hover)', borderRadius: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <p style={{ fontWeight: '700', fontSize: '14px' }}>Auto-Execute Rules (Config Flag §3.2)</p>
+                  <p style={{ fontWeight: '700', fontSize: '14px' }}>Auto-Execute Rules (Config Flag)</p>
                   <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>When ON, auto-actionable rules (RULE_3, RULE_4) execute without reviewer approval.</p>
                 </div>
                 <button
@@ -118,7 +118,7 @@ const Settings = () => {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <div>
-                <h3 style={{ marginBottom: '4px' }}>4-Way Reconciliation Rules Engine (§3.2)</h3>
+                <h3 style={{ marginBottom: '4px' }}>4-Way Reconciliation Rules Engine</h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>DB-backed configurable rule table. Add/edit rows without code deployment.</p>
               </div>
               <button
@@ -139,64 +139,29 @@ const Settings = () => {
                 <thead>
                   <tr>
                     <th>Rule ID</th>
-                    <th>NPCI Status</th>
-                    <th>Switch Status</th>
-                    <th>Middleware Status</th>
-                    <th>Wallet Status</th>
-                    <th>Action Triggered</th>
-                    <th>Matched?</th>
-                    <th>Auto?</th>
-                    <th>Edit</th>
+                    <th>NPCI</th>
+                    <th>Switch</th>
+                    <th>MW</th>
+                    <th>Wallet</th>
+                    <th>Action Required</th>
+                    <th>State</th>
+                    <th>Auto</th>
+                    <th>Ops</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rules.map((rule, idx) => (
-                    <tr key={rule.id} className="rule-row">
-                      <td><code style={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: '700', color: 'var(--primary)' }}>{rule.id}</code></td>
-                      {editingRuleId === rule.id ? (
-                        <>
-                          {['npci', 'switch', 'middleware', 'wallet'].map(field => (
-                            <td key={field}>
-                              <select
-                                value={rule[field]}
-                                onChange={e => setRules(prev => prev.map(r => r.id === rule.id ? { ...r, [field]: e.target.value } : r))}
-                                className="settings-input"
-                                style={{ padding: '6px 10px', fontSize: '12px' }}
-                              >
-                                {statusOptions.map(o => <option key={o}>{o}</option>)}
-                              </select>
-                            </td>
-                          ))}
-                          <td>
-                            <input
-                              value={rule.action}
-                              onChange={e => setRules(prev => prev.map(r => r.id === rule.id ? { ...r, action: e.target.value } : r))}
-                              className="settings-input"
-                              style={{ padding: '6px 10px', fontSize: '12px' }}
-                            />
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          {['npci', 'switch', 'middleware', 'wallet'].map(field => (
-                            <td key={field}>
-                              <span className={`badge ${rule[field] === 'Success' ? 'badge-success' : rule[field] === 'Pending' ? 'badge-warning' : rule[field] === 'Failed' ? 'badge-danger' : rule[field] === 'In Progress' ? 'badge-info' : 'badge-primary'}`}>
-                                {rule[field]}
-                              </span>
-                            </td>
-                          ))}
-                          <td style={{ fontSize: '12px', color: 'var(--text-secondary)', maxWidth: '180px' }}>{rule.action}</td>
-                        </>
-                      )}
-                      <td><span className={`badge ${rule.isMatched ? 'badge-success' : 'badge-danger'}`}>{rule.isMatched ? 'Yes' : 'No'}</span></td>
-                      <td><span className={`badge ${rule.autoActionable ? 'badge-success' : 'badge-warning'}`}>{rule.autoActionable ? 'Auto' : 'Manual'}</span></td>
+                  {rules.map(rule => (
+                    <tr key={rule.id}>
+                      <td style={{ fontWeight: '700', fontSize: '13px' }}>{rule.id}</td>
+                      <td><span className={`badge ${rule.npci === 'Success' ? 'badge-success' : 'badge-warning'}`}>{rule.npci}</span></td>
+                      <td><span className={`badge ${rule.switch === 'Success' ? 'badge-success' : 'badge-warning'}`}>{rule.switch}</span></td>
+                      <td><span className={`badge ${rule.middleware === 'Success' ? 'badge-success' : 'badge-warning'}`}>{rule.middleware}</span></td>
+                      <td><span className={`badge ${rule.wallet === 'Success' ? 'badge-success' : rule.wallet === 'N/A' ? 'badge-neutral' : 'badge-warning'}`}>{rule.wallet}</span></td>
+                      <td style={{ fontSize: '13px', fontWeight: '500' }}>{rule.action}</td>
+                      <td><span className={`badge ${rule.isMatched ? 'badge-success' : 'badge-danger'}`}>{rule.isMatched ? 'MATCHED' : 'EXCEPTION'}</span></td>
+                      <td>{rule.autoActionable ? <CheckCircle2 size={16} color="var(--success)" /> : <Clock size={16} color="var(--text-secondary)" />}</td>
                       <td>
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                          {editingRuleId === rule.id ? (
-                            <button className="icon-btn" onClick={() => setEditingRuleId(null)}><Check size={14} color="var(--success)" /></button>
-                          ) : (
-                            <button className="icon-btn" onClick={() => setEditingRuleId(rule.id)}><Edit3 size={14} /></button>
-                          )}
+                        <div style={{ display: 'flex', gap: '8px' }}>
                           <button className="icon-btn" onClick={() => setRules(prev => prev.filter(r => r.id !== rule.id))}><Trash2 size={14} color="var(--danger)" /></button>
                         </div>
                       </td>
@@ -211,7 +176,7 @@ const Settings = () => {
         {/* ── GEFU Account Configuration ── */}
         {activeSection === 'gefu' && (
           <div>
-            <h3 style={{ marginBottom: '6px' }}>GEFU Bank Account Configuration (§2.7 / §3.3)</h3>
+            <h3 style={{ marginBottom: '6px' }}>GEFU Bank Account Configuration</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '24px' }}>
               Maps each GEFU entry type to its predefined bank account number. A bank-side spec change is a config update here — no code deploy required.
             </p>
@@ -252,21 +217,21 @@ const Settings = () => {
         {/* ── Settlement & Payout Config ── */}
         {activeSection === 'settlement' && (
           <div>
-            <h3 style={{ marginBottom: '6px' }}>Settlement & Payout Configuration (§3.5 / §3.7)</h3>
+            <h3 style={{ marginBottom: '6px' }}>Settlement & Payout Configuration</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '32px' }}>
               Controls Bank Share rate, IMPS split threshold, and fund transfer rail configuration.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                 <div>
-                  <label className="input-label">Bank Share Rate (%) — §3.5</label>
+                  <label className="input-label">Bank Share Rate (%)</label>
                   <input type="number" step="0.0001" value={bankShareRate} onChange={e => setBankShareRate(e.target.value)} className="settings-input" />
                   <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '6px' }}>
                     Confirmed current rate: 0.2006%. BANK_SHARE = TXN_AMOUNT × rate. Confirm with Finance before changing.
                   </p>
                 </div>
                 <div>
-                  <label className="input-label">IMPS Per-Row Limit (₹) — §3.7</label>
+                  <label className="input-label">IMPS Per-Row Limit (₹)</label>
                   <input type="number" value={impsLimit} onChange={e => setImpsLimit(e.target.value)} className="settings-input" />
                   <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '6px' }}>
                     Any merchant NET_SETTLEMENT above this is chunked. Confirmed pattern: ₹9,29,156.36 → ₹4,29,156.36 + ₹5,00,000.
@@ -275,7 +240,7 @@ const Settings = () => {
               </div>
 
               <div>
-                <label className="input-label">Fund Transfer Rail (§3.7)</label>
+                <label className="input-label">Fund Transfer Rail</label>
                 <select value={fundTransferType} onChange={e => setFundTransferType(e.target.value)} className="settings-input">
                   <option value="IMPS">IMPS (Current — up to ₹5L per row)</option>
                   <option value="NEFT">NEFT</option>
@@ -287,7 +252,7 @@ const Settings = () => {
               </div>
 
               <div style={{ padding: '20px', background: 'var(--bg-hover)', borderRadius: '14px' }}>
-                <h4 style={{ marginBottom: '12px', fontSize: '14px' }}>NET SETTLEMENT Formula (§3.5)</h4>
+                <h4 style={{ marginBottom: '12px', fontSize: '14px' }}>NET SETTLEMENT Formula</h4>
                 <pre style={{ fontFamily: 'monospace', fontSize: '12px', color: 'var(--secondary)', lineHeight: '1.8', background: 'white', padding: '16px', borderRadius: '10px', border: '1px solid var(--border)', overflowX: 'auto' }}>
 {`NET_SETTLEMENT = TXN_AMOUNT
     − INTERCHANGE (incl. GST)
@@ -328,7 +293,7 @@ const Settings = () => {
               </div>
             </div>
             <div style={{ padding: '16px 20px', background: 'var(--warning-glow)', border: '1px solid var(--warning)', borderRadius: '12px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-              <strong style={{ color: 'var(--warning)' }}>Audit Note:</strong> All disposition actions, rule changes, and file generations are logged immutably with actor ID, timestamp, and before/after values per §4.
+              <strong style={{ color: 'var(--warning)' }}>Audit Note:</strong> All disposition actions, rule changes, and file generations are logged immutably with actor ID, timestamp, and before/after values.
             </div>
           </div>
         )}
@@ -336,7 +301,7 @@ const Settings = () => {
         {/* ── Notifications ── */}
         {activeSection === 'notifications' && (
           <div>
-            <h3 style={{ marginBottom: '24px' }}>Notification Rules (§4)</h3>
+            <h3 style={{ marginBottom: '24px' }}>Notification Rules</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
               {[
                 { label: 'Email on GEFU Hard Gate Failure', sub: 'Sent immediately when Settlement Total ≠ GEFU Final Settlement', default: true },

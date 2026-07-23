@@ -7,13 +7,13 @@ import {
 } from 'lucide-react';
 
 const PIPELINE_STEPS = [
-  { id: 1, label: '4-Way Transaction Recon', section: '§3.2', icon: RefreshCcw, desc: 'NPCI × Switch × Middleware × Wallet matching with configurable rules engine' },
-  { id: 2, label: 'Commission Reconciliation', section: '§3.4', icon: DollarSign, desc: 'Join MW matched txns with Commission report on relationalId' },
-  { id: 3, label: 'NTSL → GEFU Flat File', section: '§3.3', icon: FileText, desc: 'Parse NTSL, compute net settlement, emit fixed-width bank file with control totals' },
-  { id: 4, label: 'Settlement Calculation', section: '§3.5', icon: BarChart2, desc: 'NET_SETTLEMENT = TXN_AMT − Interchange − Switching − BankShare − Platform ± Adjustments' },
-  { id: 5, label: 'GEFU Hard Gate Check', section: '§3.6', icon: Shield, desc: 'Settlement total must equal GEFU Final Settlement Amount — blocks payout if mismatch' },
-  { id: 6, label: 'IMPS Payout File', section: '§3.7', icon: FileCheck, desc: 'Split any merchant NET > ₹5,00,000 into IMPS-compliant chunked rows with unique refs' },
-  { id: 7, label: '3-Way Payout Recon', section: '§3.8', icon: ShieldCheck, desc: 'Match iServeU payouts against Bank MIS + Bank Statement by UTR / ClientRef' },
+  { id: 1, label: '4-Way Transaction Recon', section: 'Module 1', icon: RefreshCcw, desc: 'NPCI × Switch × Middleware × Wallet matching with configurable rules engine' },
+  { id: 2, label: 'Commission Reconciliation', section: 'Module 2', icon: DollarSign, desc: 'Join MW matched txns with Commission report on relationalId' },
+  { id: 3, label: 'NTSL → GEFU Flat File', section: 'Module 3', icon: FileText, desc: 'Parse NTSL, compute net settlement, emit fixed-width bank file with control totals' },
+  { id: 4, label: 'Settlement Calculation', section: 'Module 4', icon: BarChart2, desc: 'NET_SETTLEMENT = TXN_AMT − Interchange − Switching − BankShare − Platform ± Adjustments' },
+  { id: 5, label: 'GEFU Hard Gate Check', section: 'Module 5', icon: Shield, desc: 'Settlement total must equal GEFU Final Settlement Amount — blocks payout if mismatch' },
+  { id: 6, label: 'IMPS Payout File', section: 'Module 6', icon: FileCheck, desc: 'Split any merchant NET > ₹5,00,000 into IMPS-compliant chunked rows with unique refs' },
+  { id: 7, label: '3-Way Payout Recon', section: 'Module 7', icon: ShieldCheck, desc: 'Match iServeU payouts against Bank MIS + Bank Statement by UTR / ClientRef' },
 ];
 
 const Dashboard = ({ onStartNew }) => {
