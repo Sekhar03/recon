@@ -32,14 +32,14 @@ import Wizard from './components/Wizard';
 import Login from './components/Login';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('full-pipeline');
   const [user, setUser] = useState({ name: 'Finance Admin', role: 'Reconciliation Lead' });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
 
   const logout = () => {
     setUser(null);
-    setActiveTab('dashboard');
+    setActiveTab('full-pipeline');
   };
 
   if (!user) {
@@ -53,10 +53,6 @@ function App() {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard':
-        return <Dashboard onStartNew={() => setActiveTab('full-pipeline')} />;
-      case 'cycles':
-        return <CycleManager onTriggerRun={() => setActiveTab('full-pipeline')} />;
       case 'full-pipeline':
         return <FullPipelineView />;
       case 'module-a':
@@ -90,7 +86,7 @@ function App() {
       case 'settings':
         return <SettingsView />;
       default:
-        return <Dashboard onStartNew={() => setActiveTab('full-pipeline')} />;
+        return <FullPipelineView />;
     }
   };
 
@@ -112,27 +108,10 @@ function App() {
 
         <nav style={{ flex: 1, overflowY: 'auto' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            {/* Group 1: Core Dashboard */}
+            {/* Reconciliation Tools */}
             <div>
               <p style={{ fontSize: '10px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', fontWeight: '700', letterSpacing: '1px', margin: '0 0 8px 12px' }}>
-                Main Dashboard
-              </p>
-              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <li className={`nav-item ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setMobileMenuOpen(false); }}>
-                  <LayoutDashboard size={17} />
-                  <span>Overview (UPI / DMT / MATM)</span>
-                </li>
-                <li className={`nav-item ${activeTab === 'cycles' ? 'active' : ''}`} onClick={() => { setActiveTab('cycles'); setMobileMenuOpen(false); }}>
-                  <Clock size={17} />
-                  <span>NPCI Sub-Cycle Scheduler</span>
-                </li>
-              </ul>
-            </div>
-
-            {/* Group 2: Reconciliation Tools */}
-            <div>
-              <p style={{ fontSize: '10px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', fontWeight: '700', letterSpacing: '1px', margin: '0 0 8px 12px' }}>
-                Reconciliation Tools
+                Reconciliation Hub
               </p>
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <li className={`nav-item ${activeTab === 'full-pipeline' ? 'active' : ''}`} onClick={() => { setActiveTab('full-pipeline'); setMobileMenuOpen(false); }}>
