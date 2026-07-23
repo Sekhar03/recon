@@ -719,7 +719,7 @@ const FullPipelineView = () => {
                   Reconciliation Execution Completed
                 </h3>
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                  Job ID: <strong>{result?.jobId}</strong> | Product: <strong>{selectedProduct}</strong> | Cycle: <strong>{cycle}</strong>
+                  Date: <strong>{selectedDate}</strong> | Cycle: <strong>{cycle.replace(/_/g, ' ')}</strong> | Time: <strong>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</strong> | Product: <strong>{selectedProduct}</strong>
                 </p>
               </div>
 
