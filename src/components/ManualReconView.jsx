@@ -1,76 +1,87 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getCategories, getProductsByCategory, getProductById } from '../utils/productConfigs';
+import { getCategories, getProductsByCategory, getProductById, getAllProducts } from '../utils/productConfigs';
 import { runRecon, exportToExcel, exportReconResults } from '../utils/manualReconEngine';
 import {
   Play, CheckCircle, Clock, Upload, Download, RefreshCw, AlertTriangle,
   ChevronRight, FileText, Check, Search, X, ArrowLeft, Layers, Database,
-  Filter, ChevronDown
+  Filter, ChevronDown, Tag, Calendar, RotateCcw
 } from 'lucide-react';
 
-const steps = [
-  { id: 1, label: 'Select Product' },
-  { id: 2, label: 'Upload Data' },
-  { id: 3, label: 'Processing' },
-  { id: 4, label: 'Results' }
+const wizardSteps = [
+  { id: 1, label: 'Select Category' },
+  { id: 2, label: 'Sub-Product, Cycle & Date' },
+  { id: 3, label: 'Upload Files' },
+  { id: 4, label: 'Processing' },
+  { id: 5, label: 'Results' }
 ];
 
 export default function ManualReconView() {
   const [currentStep, setCurrentStep] = useState(1);
   const [categories, setCategories] = useState([]);
 
-  // Step 1 State
+  // Step 1 State: Category Selection
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
+
+  // Step 2 State: Sub-Product, Settlement Cycle & Business Date
   const [availableProducts, setAvailableProducts] = useState([]);
   const [selectedProductId, setSelectedProductId] = useState('');
+  const [settlementCycle, setSettlementCycle] = useState('All Cycles (Daily Consolidated)');
   const [businessDate, setBusinessDate] = useState(new Date().toISOString().split('T')[0]);
-
-  // Step 2 State
   const [productConfig, setProductConfig] = useState(null);
+
+  // Step 3 State: Upload Files
   const [uploadedFiles, setUploadedFiles] = useState({});
   const [filePreviews, setFilePreviews] = useState({});
   const [dragActive, setDragActive] = useState(null);
 
-  // Step 3 State
+  // Step 4 State: Processing
   const [processingStatus, setProcessingStatus] = useState('idle'); // idle, processing, completed, error
   const [processingLogs, setProcessingLogs] = useState([]);
   const [currentProcStepIndex, setCurrentProcStepIndex] = useState(-1);
   const logsEndRef = useRef(null);
 
-  // Step 4 State
+  // Step 5 State: Results
   const [reconResults, setReconResults] = useState(null);
   const [activeTab, setActiveTab] = useState('mismatched');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 50;
 
+  // Initial load: fetch all categories
   useEffect(() => {
     try {
       const cats = getCategories();
       setCategories(cats || []);
     } catch (e) {
-      console.warn("Failed to get categories", e);
+      console.warn("Failed to load categories", e);
     }
   }, []);
 
+  // Update available sub-products whenever selectedCategoryId changes
   useEffect(() => {
     if (selectedCategoryId) {
       try {
         const prods = getProductsByCategory(selectedCategoryId);
         setAvailableProducts(prods || []);
+        if (prods && prods.length > 0) {
+          setSelectedProductId(prods[0].id);
+        } else {
+          setSelectedProductId('');
+        }
       } catch (e) {
-        console.warn("Failed to get products", e);
+        console.warn("Failed to load sub-products", e);
       }
-      setSelectedProductId('');
     }
   }, [selectedCategoryId]);
 
+  // Update productConfig whenever selectedProductId changes
   useEffect(() => {
     if (selectedProductId) {
       try {
         const config = getProductById(selectedProductId);
         setProductConfig(config);
       } catch (e) {
-        console.warn("Failed to get product config", e);
+        console.warn("Failed to load product config", e);
       }
       setUploadedFiles({});
       setFilePreviews({});
@@ -79,6 +90,7 @@ export default function ManualReconView() {
     }
   }, [selectedProductId]);
 
+  // Scroll logs to bottom during processing
   useEffect(() => {
     if (logsEndRef.current) {
       logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -86,13 +98,19 @@ export default function ManualReconView() {
   }, [processingLogs]);
 
   // --- Step 1 Handlers ---
-  const handleProceedToStep2 = () => {
-    if (selectedProductId && businessDate) {
-      setCurrentStep(2);
-    }
+  const handleSelectCategory = (catId) => {
+    setSelectedCategoryId(catId);
+    setCurrentStep(2);
   };
 
   // --- Step 2 Handlers ---
+  const handleProceedToUpload = () => {
+    if (selectedProductId && businessDate) {
+      setCurrentStep(3);
+    }
+  };
+
+  // --- Step 3 Handlers ---
   const handleDrag = (e, sourceKey) => {
     e.preventDefault();
     e.stopPropagation();
@@ -121,20 +139,20 @@ export default function ManualReconView() {
   const handleFile = (file, sourceKey) => {
     setUploadedFiles(prev => ({ ...prev, [sourceKey]: file }));
     
-    // Simulate preview generation
+    // Create preview simulation
     setTimeout(() => {
       setFilePreviews(prev => ({
         ...prev,
         [sourceKey]: {
-          cols: ['ID', 'Amount', 'Date', 'Status'],
+          cols: ['TxnRefID', 'Amount', 'Date', 'Status'],
           rows: [
-            ['1001', '500.00', '2023-10-01', 'Settled'],
-            ['1002', '1250.50', '2023-10-01', 'Pending'],
-            ['1003', '75.25', '2023-10-02', 'Settled']
+            ['TXN1001', '500.00', businessDate, 'SUCCESS'],
+            ['TXN1002', '1250.50', businessDate, 'SUCCESS'],
+            ['TXN1003', '75.25', businessDate, 'FAILED']
           ]
         }
       }));
-    }, 500);
+    }, 400);
   };
 
   const removeFile = (sourceKey) => {
@@ -150,7 +168,7 @@ export default function ManualReconView() {
     });
   };
 
-  const canProceedToStep3 = () => {
+  const canStartRecon = () => {
     if (!productConfig || !productConfig.sources) return false;
     return productConfig.sources.every(src => {
       if (src.required) return !!uploadedFiles[src.key];
@@ -159,7 +177,7 @@ export default function ManualReconView() {
   };
 
   const handleStartRecon = async () => {
-    setCurrentStep(3);
+    setCurrentStep(4);
     setProcessingStatus('processing');
     setProcessingLogs([]);
     setCurrentProcStepIndex(0);
@@ -173,8 +191,8 @@ export default function ManualReconView() {
       setReconResults(results);
       setProcessingStatus('completed');
       setTimeout(() => {
-        setCurrentStep(4);
-      }, 1500);
+        setCurrentStep(5);
+      }, 1400);
     } catch (error) {
       console.error(error);
       setProcessingStatus('error');
@@ -182,7 +200,7 @@ export default function ManualReconView() {
     }
   };
 
-  // --- Step 4 Handlers ---
+  // --- Step 5 Handlers ---
   const handleReset = () => {
     setCurrentStep(1);
     setSelectedCategoryId('');
@@ -218,10 +236,10 @@ export default function ManualReconView() {
   const paginatedData = filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
   const dataColumns = filteredData.length > 0 ? Object.keys(filteredData[0]) : [];
 
-  // --- Render Helpers ---
+  // --- Render 5-Step Stepper Header ---
   const renderStepper = () => (
     <div className="glass-card" style={{ padding: '20px 32px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      {steps.map((step, index) => {
+      {wizardSteps.map((step, index) => {
         const isActive = step.id === currentStep;
         const isCompleted = step.id < currentStep;
         
@@ -240,14 +258,15 @@ export default function ManualReconView() {
                 {isCompleted ? <Check size={18} /> : step.id}
               </div>
               <span style={{ 
-                marginTop: '8px', fontSize: '0.85rem', fontWeight: isActive ? '600' : '400',
-                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)'
+                marginTop: '8px', fontSize: '0.82rem', fontWeight: isActive ? '700' : '500',
+                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                textAlign: 'center'
               }}>
                 {step.label}
               </span>
             </div>
-            {index < steps.length - 1 && (
-              <div style={{ flex: 1, height: '2px', backgroundColor: isCompleted ? 'var(--success)' : 'var(--border)', margin: '0 16px', marginTop: '-24px', transition: 'all 0.3s ease' }} />
+            {index < wizardSteps.length - 1 && (
+              <div style={{ flex: 1, height: '2px', backgroundColor: isCompleted ? 'var(--success)' : 'var(--border)', margin: '0 12px', marginTop: '-24px', transition: 'all 0.3s ease' }} />
             )}
           </div>
         );
@@ -255,347 +274,355 @@ export default function ManualReconView() {
     </div>
   );
 
+  // ─── STEP 1: Select Main Product Category ───
   const renderStep1 = () => (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div>
-        <h2 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Layers className="text-primary" size={24} /> Select Category
+        <h2 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.4rem' }}>
+          <Layers className="text-primary" size={26} /> Step 1: Select Product Category
         </h2>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Choose the asset class or product category you want to reconcile.</p>
+        <p style={{ color: 'var(--text-secondary)', margin: '0 0 24px 0', fontSize: '0.95rem' }}>
+          Choose the main financial product category to begin reconciliation.
+        </p>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '20px' }}>
           {categories.map(cat => (
             <div 
               key={cat.id} 
               className="glass-card"
-              onClick={() => setSelectedCategoryId(cat.id)}
+              onClick={() => handleSelectCategory(cat.id)}
               style={{
                 padding: '24px', cursor: 'pointer', position: 'relative', overflow: 'hidden',
                 borderColor: selectedCategoryId === cat.id ? 'var(--primary)' : 'var(--border)',
-                backgroundColor: selectedCategoryId === cat.id ? 'rgba(17, 157, 176, 0.05)' : '',
-                transform: selectedCategoryId === cat.id ? 'translateY(-2px)' : 'none',
-                boxShadow: selectedCategoryId === cat.id ? '0 8px 24px rgba(0,0,0,0.05)' : 'none',
-                transition: 'all 0.2s ease'
+                backgroundColor: selectedCategoryId === cat.id ? 'rgba(17, 157, 176, 0.06)' : 'white',
+                transition: 'all 0.25s ease',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-3px)';
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.03)';
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>{cat.icon || '📦'}</div>
-                {selectedCategoryId === cat.id && (
-                  <div style={{ backgroundColor: 'var(--primary)', color: 'white', borderRadius: '50%', padding: '4px' }}>
-                    <Check size={16} />
-                  </div>
-                )}
+                <div style={{ fontSize: '2.4rem', lineHeight: 1 }}>{cat.icon || '📦'}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)', background: 'rgba(17,157,176,0.1)', padding: '3px 10px', borderRadius: '12px' }}>
+                    Select →
+                  </span>
+                </div>
               </div>
-              <h3 style={{ margin: '0 0 8px 0', fontSize: '1.1rem' }}>{cat.name}</h3>
-              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.4' }}>{cat.desc}</p>
+              <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem' }}>{cat.name}</h3>
+              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: '1.4' }}>{cat.desc}</p>
             </div>
           ))}
         </div>
       </div>
-
-      {selectedCategoryId && (
-        <div className="animate-fade-in glass-card" style={{ padding: '24px' }}>
-          <h3 style={{ marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>Configuration</h3>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Sub-Product</label>
-              <div style={{ position: 'relative' }}>
-                <select 
-                  className="settings-input" 
-                  value={selectedProductId} 
-                  onChange={(e) => setSelectedProductId(e.target.value)}
-                  style={{ width: '100%', appearance: 'none', paddingRight: '40px' }}
-                >
-                  <option value="">Select a product...</option>
-                  {availableProducts.map(prod => (
-                    <option key={prod.id} value={prod.id}>
-                      {prod.name} {prod.reconStatus ? `[${prod.reconStatus}]` : ''}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown size={18} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
-              </div>
-            </div>
-            
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Business Date</label>
-              <input 
-                type="date" 
-                className="settings-input" 
-                value={businessDate}
-                onChange={(e) => setBusinessDate(e.target.value)}
-                style={{ width: '100%' }}
-              />
-            </div>
-          </div>
-          
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '32px' }}>
-            <button 
-              className="btn btn-primary" 
-              onClick={handleProceedToStep2}
-              disabled={!selectedProductId || !businessDate}
-              style={{ padding: '10px 24px' }}
-            >
-              Proceed to Upload <ChevronRight size={18} />
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 
+  // ─── STEP 2: Sub-Product, Settlement Cycle & Business Date ───
   const renderStep2 = () => {
-    if (!productConfig) return null;
-    
+    const activeCategory = categories.find(c => c.id === selectedCategoryId);
+
     return (
       <div className="animate-fade-in glass-card" style={{ padding: '32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
-          <button className="btn btn-outline" onClick={() => setCurrentStep(1)} style={{ marginRight: '16px', padding: '8px' }}>
-            <ArrowLeft size={18} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
+          <button 
+            className="btn btn-outline" 
+            onClick={() => setCurrentStep(1)}
+            style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <ArrowLeft size={16} /> Back to Categories
           </button>
           <div>
-            <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Database className="text-primary" size={24} /> Upload Data Sources
+            <h2 style={{ margin: 0, fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>{activeCategory?.icon}</span> {activeCategory?.name} — Sub-Product & Cycle Setup
             </h2>
-            <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)' }}>
-              Reconciling: <strong>{productConfig.name}</strong> for {businessDate}
+            <p style={{ margin: '2px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+              Configure the specific sub-product, settlement cycle, and target business date.
             </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '32px' }}>
-          {productConfig.sources && productConfig.sources.map((source) => {
-            const isUploaded = !!uploadedFiles[source.key];
-            const isDragActive = dragActive === source.key;
-            
-            return (
-              <div key={source.key} style={{ 
-                border: '1px solid var(--border)', 
-                borderRadius: '8px', 
-                overflow: 'hidden',
-                backgroundColor: 'var(--bg-card)'
-              }}>
-                <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', backgroundColor: 'rgba(0,0,0,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{source.label}</h3>
-                    {source.required ? (
-                      <span className="badge badge-warning">Required</span>
-                    ) : (
-                      <span className="badge" style={{ backgroundColor: 'var(--border)', color: 'var(--text-secondary)' }}>Optional</span>
-                    )}
-                  </div>
-                  {isUploaded && <span className="badge badge-success" style={{ display: 'flex', gap: '4px', alignItems: 'center' }}><CheckCircle size={14}/> Uploaded</span>}
-                </div>
-                
-                <div style={{ padding: '24px' }}>
-                  {!isUploaded ? (
-                    <div 
-                      onDragEnter={(e) => handleDrag(e, source.key)}
-                      onDragLeave={(e) => handleDrag(e, source.key)}
-                      onDragOver={(e) => handleDrag(e, source.key)}
-                      onDrop={(e) => handleDrop(e, source.key)}
-                      style={{
-                        border: `2px dashed ${isDragActive ? 'var(--primary)' : 'var(--border)'}`,
-                        borderRadius: '8px',
-                        padding: '40px 20px',
-                        textAlign: 'center',
-                        backgroundColor: isDragActive ? 'rgba(17, 157, 176, 0.05)' : 'transparent',
-                        transition: 'all 0.2s',
-                        cursor: 'pointer'
-                      }}
-                      onClick={() => document.getElementById(`file-upload-${source.key}`).click()}
-                    >
-                      <input 
-                        type="file" 
-                        id={`file-upload-${source.key}`}
-                        style={{ display: 'none' }} 
-                        accept=".csv, .xlsx, .xls"
-                        onChange={(e) => handleFileInput(e, source.key)}
-                      />
-                      <Upload size={32} color={isDragActive ? 'var(--primary)' : 'var(--text-secondary)'} style={{ marginBottom: '16px' }} />
-                      <p style={{ margin: '0 0 8px 0', fontWeight: '500', color: isDragActive ? 'var(--primary)' : 'var(--text-primary)' }}>
-                        Drag & drop file here or click to browse
-                      </p>
-                      <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        Supports CSV, XLSX up to 50MB
-                      </p>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', backgroundColor: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '6px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <FileText size={24} className="text-success" />
-                          <div>
-                            <p style={{ margin: '0 0 4px 0', fontWeight: '500' }}>{uploadedFiles[source.key].name}</p>
-                            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                              {(uploadedFiles[source.key].size / 1024 / 1024).toFixed(2)} MB
-                            </p>
-                          </div>
-                        </div>
-                        <button className="btn btn-outline" onClick={() => removeFile(source.key)} style={{ padding: '6px' }}>
-                          <X size={16} />
-                        </button>
-                      </div>
-                      
-                      {filePreviews[source.key] && (
-                        <div>
-                          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Data Preview (first 3 rows)</p>
-                          <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: '6px' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                              <thead>
-                                <tr>
-                                  {filePreviews[source.key].cols.map((col, i) => (
-                                    <th key={i} style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid var(--border)', backgroundColor: 'var(--bg-hover)', color: 'var(--text-secondary)', fontWeight: '500' }}>{col}</th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {filePreviews[source.key].rows.map((row, i) => (
-                                  <tr key={i}>
-                                    {row.map((cell, j) => (
-                                      <td key={j} style={{ padding: '8px 12px', borderBottom: i < 2 ? '1px solid var(--border)' : 'none', color: 'var(--text-primary)' }}>{cell}</td>
-                                    ))}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
+          {/* Sub-Product Select */}
+          <div>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>
+              Sub-Product Variant ({availableProducts.length} Available)
+            </label>
+            <div style={{ position: 'relative' }}>
+              <select 
+                className="settings-input" 
+                value={selectedProductId} 
+                onChange={(e) => setSelectedProductId(e.target.value)}
+                style={{ width: '100%', appearance: 'none', paddingRight: '40px', fontSize: '0.95rem', fontWeight: '500' }}
+              >
+                {availableProducts.map(prod => (
+                  <option key={prod.id} value={prod.id}>
+                    {prod.name} {prod.reconStatus ? `[${prod.reconStatus}]` : ''}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={18} style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+            </div>
+          </div>
+
+          {/* Settlement Cycle Select */}
+          <div>
+            <label style={{ marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <RotateCcw size={15} color="var(--primary)" /> Settlement Cycle
+            </label>
+            <div style={{ position: 'relative' }}>
+              <select 
+                className="settings-input" 
+                value={settlementCycle} 
+                onChange={(e) => setSettlementCycle(e.target.value)}
+                style={{ width: '100%', appearance: 'none', paddingRight: '40px', fontSize: '0.95rem', fontWeight: '500' }}
+              >
+                <option value="All Cycles (Daily Consolidated)">All Cycles (Daily Consolidated)</option>
+                <option value="Cycle 1 (00:00 - 08:00)">Cycle 1 (00:00 - 08:00)</option>
+                <option value="Cycle 2 (08:00 - 16:00)">Cycle 2 (08:00 - 16:00)</option>
+                <option value="Cycle 3 (16:00 - 24:00)">Cycle 3 (16:00 - 24:00)</option>
+                <option value="Cycle 4 (Night Settlement)">Cycle 4 (Night Settlement)</option>
+              </select>
+              <ChevronDown size={18} style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+            </div>
+          </div>
+
+          {/* Business Date Picker */}
+          <div>
+            <label style={{ marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Calendar size={15} color="var(--primary)" /> Business Date (T)
+            </label>
+            <input 
+              type="date" 
+              className="settings-input" 
+              value={businessDate}
+              onChange={(e) => setBusinessDate(e.target.value)}
+              style={{ width: '100%', fontSize: '0.95rem' }}
+            />
+          </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '32px', gap: '16px' }}>
+        {/* Selected Product Specifications Box */}
+        {productConfig && (
+          <div style={{ marginTop: '28px', background: 'rgba(17, 157, 176, 0.05)', padding: '20px 24px', borderRadius: '12px', border: '1px solid rgba(17, 157, 176, 0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Configuration Specification
+                </span>
+                <h3 style={{ margin: '4px 0 6px 0', fontSize: '1.2rem', color: 'var(--text-primary)' }}>{productConfig.name}</h3>
+                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                  Reconciliation Status: <strong>{productConfig.reconStatus || 'Manual'}</strong> • Target Date: <strong>{businessDate}</strong> • Cycle: <strong>{settlementCycle}</strong>
+                </p>
+                <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {productConfig.sources?.map((src, i) => (
+                    <span key={i} style={{ fontSize: '0.8rem', background: 'white', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      📄 {src.label} {src.required ? <strong style={{ color: 'var(--danger)' }}>*</strong> : '(Optional)'}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <button 
+                className="btn btn-primary" 
+                onClick={handleProceedToUpload}
+                disabled={!selectedProductId || !businessDate}
+                style={{ padding: '12px 28px', fontWeight: '700', fontSize: '0.95rem', whiteSpace: 'nowrap' }}
+              >
+                Proceed to File Upload <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ─── STEP 3: Upload Source Files ───
+  const renderStep3 = () => {
+    if (!productConfig) return null;
+
+    return (
+      <div className="animate-fade-in glass-card" style={{ padding: '32px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button 
+              className="btn btn-outline" 
+              onClick={() => setCurrentStep(2)}
+              style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <ArrowLeft size={16} /> Back to Setup
+            </button>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.3rem' }}>Step 3: Upload Source Files for {productConfig.name}</h2>
+              <p style={{ margin: '2px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                Date: <strong>{businessDate}</strong> • Cycle: <strong>{settlementCycle}</strong>
+              </p>
+            </div>
+          </div>
+
           <button 
             className="btn btn-primary" 
             onClick={handleStartRecon}
-            disabled={!canProceedToStep3()}
-            style={{ padding: '10px 24px', display: 'flex', alignItems: 'center', gap: '8px' }}
+            disabled={!canStartRecon()}
+            style={{ padding: '10px 24px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: '700' }}
           >
-            <Play size={18} /> Start Reconciliation
+            <Play size={18} /> Start Reconciliation Engine
           </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: productConfig.sources.length > 2 ? 'repeat(2, 1fr)' : '1fr', gap: '24px' }}>
+          {productConfig.sources.map(src => {
+            const uploadedFile = uploadedFiles[src.key];
+            const isDrag = dragActive === src.key;
+            const preview = filePreviews[src.key];
+
+            return (
+              <div 
+                key={src.key} 
+                style={{ 
+                  border: `2px dashed ${isDrag ? 'var(--primary)' : (uploadedFile ? 'var(--success)' : 'var(--border)')}`,
+                  borderRadius: '12px', padding: '24px', textAlign: 'center',
+                  backgroundColor: isDrag ? 'rgba(17,157,176,0.05)' : (uploadedFile ? 'rgba(16,185,129,0.03)' : 'white'),
+                  transition: 'all 0.2s ease'
+                }}
+                onDragEnter={(e) => handleDrag(e, src.key)}
+                onDragOver={(e) => handleDrag(e, src.key)}
+                onDragLeave={(e) => handleDrag(e, src.key)}
+                onDrop={(e) => handleDrop(e, src.key)}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <span style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--text-primary)' }}>{src.label}</span>
+                  {src.required ? (
+                    <span className="badge badge-danger">Required</span>
+                  ) : (
+                    <span className="badge badge-warning">Optional</span>
+                  )}
+                </div>
+
+                {!uploadedFile ? (
+                  <div style={{ padding: '20px 0' }}>
+                    <Upload size={36} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
+                    <p style={{ margin: '0 0 8px 0', fontSize: '0.95rem', fontWeight: '500' }}>
+                      Drag and drop file here, or{' '}
+                      <label style={{ color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline' }}>
+                        browse
+                        <input type="file" accept=".xlsx, .xls, .csv" onChange={(e) => handleFileInput(e, src.key)} style={{ display: 'none' }} />
+                      </label>
+                    </p>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Supports .xlsx, .xls, .csv</p>
+                  </div>
+                ) : (
+                  <div className="animate-fade-in" style={{ textAlign: 'left' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <FileText size={24} style={{ color: 'var(--success)' }} />
+                        <div>
+                          <p style={{ margin: 0, fontWeight: '600', fontSize: '0.9rem' }}>{uploadedFile.name}</p>
+                          <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{(uploadedFile.size / 1024).toFixed(1)} KB</p>
+                        </div>
+                      </div>
+                      <button onClick={() => removeFile(src.key)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    {preview && (
+                      <div style={{ marginTop: '16px' }}>
+                        <p style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>File Structure Preview</p>
+                        <div style={{ overflowX: 'auto', background: '#F8FAFC', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                          <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                                {preview.cols.map(c => <th key={c} style={{ padding: '6px 10px', textAlign: 'left' }}>{c}</th>)}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {preview.rows.map((r, i) => (
+                                <tr key={i} style={{ borderBottom: i < preview.rows.length - 1 ? '1px solid #E2E8F0' : 'none' }}>
+                                  {r.map((val, j) => <td key={j} style={{ padding: '6px 10px' }}>{val}</td>)}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
   };
 
-  const renderStep3 = () => (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div className="glass-card" style={{ padding: '32px', textAlign: 'center' }}>
-        {processingStatus === 'processing' && (
-          <div style={{ marginBottom: '24px' }}>
-            <RefreshCw size={48} className="text-primary" style={{ animation: 'spin 2s linear infinite', margin: '0 auto' }} />
-            <h2 style={{ marginTop: '16px', marginBottom: '8px' }}>Reconciliation in Progress</h2>
-            <p style={{ color: 'var(--text-secondary)' }}>Running matching engine rules for {productConfig?.name}...</p>
-          </div>
-        )}
-        {processingStatus === 'completed' && (
-          <div style={{ marginBottom: '24px' }}>
-            <CheckCircle size={48} className="text-success" style={{ margin: '0 auto' }} />
-            <h2 style={{ marginTop: '16px', marginBottom: '8px' }}>Reconciliation Complete</h2>
-            <p style={{ color: 'var(--text-secondary)' }}>Preparing results dashboard...</p>
-          </div>
-        )}
-        {processingStatus === 'error' && (
-          <div style={{ marginBottom: '24px' }}>
-            <AlertTriangle size={48} className="text-danger" style={{ margin: '0 auto' }} />
-            <h2 style={{ marginTop: '16px', marginBottom: '8px' }}>Processing Failed</h2>
-            <p style={{ color: 'var(--text-secondary)' }}>An error occurred during reconciliation.</p>
-            <button className="btn btn-outline" onClick={() => setCurrentStep(2)} style={{ marginTop: '16px' }}>Go Back</button>
-          </div>
-        )}
-
-        {/* Steps Pipeline */}
-        {productConfig?.steps && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '600px', margin: '0 auto', textAlign: 'left' }}>
-            {productConfig.steps.map((step, idx) => {
-              const isPast = currentProcStepIndex > idx || processingStatus === 'completed';
-              const isCurrent = currentProcStepIndex === idx && processingStatus === 'processing';
-              const isFuture = currentProcStepIndex < idx;
-              
-              let statusIcon = <Clock size={16} color="var(--text-secondary)" />;
-              let borderColor = 'var(--border)';
-              
-              if (isPast) {
-                statusIcon = <CheckCircle size={16} className="text-success" />;
-                borderColor = 'var(--success)';
-              } else if (isCurrent) {
-                statusIcon = <RefreshCw size={16} className="text-primary" style={{ animation: 'spin 2s linear infinite' }} />;
-                borderColor = 'var(--primary)';
-              }
-
-              return (
-                <div key={idx} className="pipeline-step" style={{ 
-                  display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', 
-                  border: `1px solid ${borderColor}`, borderRadius: '8px',
-                  backgroundColor: isCurrent ? 'rgba(17, 157, 176, 0.05)' : 'transparent',
-                  opacity: isFuture ? 0.6 : 1,
-                  transition: 'all 0.3s'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '24px' }}>
-                    {statusIcon}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, fontWeight: '500', color: isCurrent ? 'var(--primary)' : 'var(--text-primary)' }}>{step.name}</p>
-                  </div>
-                  {isCurrent && <span className="badge badge-warning">Processing</span>}
-                  {isPast && <span className="badge badge-success">Done</span>}
-                  {isFuture && <span className="badge" style={{ backgroundColor: 'var(--border)' }}>Waiting</span>}
-                </div>
-              );
-            })}
-          </div>
-        )}
+  // ─── STEP 4: Processing ───
+  const renderStep4 = () => (
+    <div className="animate-fade-in glass-card" style={{ padding: '32px' }}>
+      <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+        <h2 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Processing Reconciliation Engine</h2>
+        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+          Product: <strong>{productConfig?.name}</strong> • Business Date: <strong>{businessDate}</strong> • Cycle: <strong>{settlementCycle}</strong>
+        </p>
       </div>
 
-      {/* Terminal Output */}
-      <div className="glass-card" style={{ padding: '0', overflow: 'hidden', backgroundColor: '#1b2a3e', border: '1px solid rgba(255,255,255,0.1)' }}>
-        <div style={{ padding: '12px 16px', backgroundColor: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <FileText size={16} color="#8b9bb4" />
-          <span style={{ color: '#8b9bb4', fontSize: '0.85rem', fontFamily: 'monospace' }}>Engine Logs</span>
+      {/* Terminal Log Output */}
+      <div style={{ backgroundColor: '#1b2a3e', borderRadius: '12px', padding: '24px', fontFamily: 'monospace', color: '#e2e8f0', height: '350px', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
+          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
+          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
+          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+          <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginLeft: '8px' }}>engine_console.log</span>
         </div>
-        <div style={{ padding: '16px', height: '250px', overflowY: 'auto', fontFamily: 'monospace', fontSize: '0.85rem', color: '#cbd5e1', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {processingLogs.length === 0 && <span style={{ color: '#64748b' }}>Waiting for engine to start...</span>}
-          {processingLogs.map((log, i) => {
-            let color = '#cbd5e1';
-            if (log.status === 'error') color = '#ef4444';
-            if (log.status === 'completed') color = '#10b981';
-            if (log.status === 'info') color = '#3b82f6';
-            if (log.status === 'skipped') color = '#f59e0b';
-            
-            return (
-              <div key={i} style={{ display: 'flex', gap: '12px' }}>
-                <span style={{ color: '#64748b' }}>[{log.time}]</span>
-                <span style={{ color }}>{log.message}</span>
-              </div>
-            );
-          })}
-          <div ref={logsEndRef} />
-        </div>
+
+        {processingLogs.map((log, idx) => {
+          let logColor = '#cbd5e1';
+          if (log.status === 'completed') logColor = '#34d399';
+          if (log.status === 'error') logColor = '#f87171';
+          if (log.status === 'processing') logColor = '#60a5fa';
+
+          return (
+            <div key={idx} style={{ marginBottom: '8px', fontSize: '0.85rem', color: logColor, display: 'flex', gap: '12px' }}>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>[{log.time}]</span>
+              <span>{log.message}</span>
+            </div>
+          );
+        })}
+        {processingStatus === 'processing' && (
+          <div style={{ color: '#60a5fa', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <RefreshCw className="animate-spin" size={14} /> Running merge, column normalization, and comparison logic...
+          </div>
+        )}
+        <div ref={logsEndRef} />
       </div>
     </div>
   );
 
-  const renderStep4 = () => {
+  // ─── STEP 5: Results ───
+  const renderStep5 = () => {
     if (!reconResults) return null;
     const { summary } = reconResults;
-    
+
     return (
       <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h2 style={{ margin: '0 0 4px 0' }}>Reconciliation Results</h2>
-            <p style={{ margin: 0, color: 'var(--text-secondary)' }}>{productConfig?.name} | {businessDate}</p>
+            <h2 style={{ margin: '0 0 4px 0' }}>Reconciliation Final Results</h2>
+            <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+              {productConfig?.name} • Business Date: <strong>{businessDate}</strong> • Cycle: <strong>{settlementCycle}</strong>
+            </p>
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
             <button className="btn btn-outline" onClick={handleReset} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <RefreshCw size={16} /> Run Another
+              <RefreshCw size={16} /> Run Another Recon
             </button>
             <button className="btn btn-primary" onClick={() => exportReconResults(reconResults.matchedData, reconResults.mismatchedData, productConfig, reconResults.allData)} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <Download size={16} /> Export Final Report
@@ -603,55 +630,54 @@ export default function ManualReconView() {
           </div>
         </div>
 
-        {/* Summary Cards */}
+        {/* Summary Metrics Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
           <div className="glass-card" style={{ padding: '20px', borderTop: '3px solid var(--text-secondary)' }}>
-            <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Total Records Analyzed</p>
+            <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Total Analyzed Records</p>
             <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{summary?.totalRecords?.toLocaleString() || 0}</div>
-            <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Across all sources</p>
+            <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Across all merged sources</p>
           </div>
           <div className="glass-card" style={{ padding: '20px', borderTop: '3px solid var(--success)' }}>
-            <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Matched</p>
+            <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Matched / Settled</p>
             <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--success)' }}>{summary?.matched?.toLocaleString() || 0}</div>
-            <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Perfect match</p>
+            <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Fully reconciled</p>
           </div>
           <div className="glass-card" style={{ padding: '20px', borderTop: '3px solid var(--danger)' }}>
-            <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Mismatched</p>
+            <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Mismatched / Exceptions</p>
             <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--danger)' }}>{summary?.mismatched?.toLocaleString() || 0}</div>
-            <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Requires investigation</p>
+            <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Discrepancies identified</p>
           </div>
           <div className="glass-card" style={{ padding: '20px', borderTop: '3px solid var(--primary)' }}>
-            <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Match Rate</p>
-            <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--primary)' }}>{summary?.matchRate || '0'}%</div>
+            <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Match Accuracy Rate</p>
+            <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--primary)' }}>{summary?.matchRate || '0%'}</div>
             <p style={{ margin: '8px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Time: {summary?.elapsedTime || '0s'}</p>
           </div>
         </div>
 
-        {/* Data Table Area */}
-        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {/* Toolbar */}
+        {/* Data Table with Tab Toolbar */}
+        <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
           <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button 
                 className={`btn ${activeTab === 'mismatched' ? 'btn-primary' : 'btn-outline'}`}
                 onClick={() => { setActiveTab('mismatched'); setCurrentPage(1); }}
-                style={{ padding: '6px 16px', borderRadius: '20px', border: activeTab === 'mismatched' ? 'none' : '1px solid var(--border)' }}
+                style={{ padding: '6px 16px', borderRadius: '20px' }}
               >
                 Mismatches <span style={{ marginLeft: '6px', padding: '2px 8px', borderRadius: '10px', backgroundColor: activeTab === 'mismatched' ? 'rgba(255,255,255,0.2)' : 'rgba(239,68,68,0.1)', fontSize: '0.8rem' }}>{summary?.mismatched || 0}</span>
               </button>
               <button 
                 className={`btn ${activeTab === 'matched' ? 'btn-primary' : 'btn-outline'}`}
                 onClick={() => { setActiveTab('matched'); setCurrentPage(1); }}
-                style={{ padding: '6px 16px', borderRadius: '20px', border: activeTab === 'matched' ? 'none' : '1px solid var(--border)' }}
+                style={{ padding: '6px 16px', borderRadius: '20px' }}
               >
                 Matches <span style={{ marginLeft: '6px', padding: '2px 8px', borderRadius: '10px', backgroundColor: activeTab === 'matched' ? 'rgba(255,255,255,0.2)' : 'rgba(16,185,129,0.1)', fontSize: '0.8rem' }}>{summary?.matched || 0}</span>
               </button>
               <button 
                 className={`btn ${activeTab === 'all' ? 'btn-primary' : 'btn-outline'}`}
                 onClick={() => { setActiveTab('all'); setCurrentPage(1); }}
-                style={{ padding: '6px 16px', borderRadius: '20px', border: activeTab === 'all' ? 'none' : '1px solid var(--border)' }}
+                style={{ padding: '6px 16px', borderRadius: '20px' }}
               >
-                All Data
+                All Records
               </button>
             </div>
             
@@ -660,45 +686,35 @@ export default function ManualReconView() {
                 <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
                 <input 
                   type="text" 
-                  placeholder="Search data..." 
+                  placeholder="Search records..." 
                   className="settings-input"
                   value={searchQuery}
                   onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                  style={{ paddingLeft: '36px', width: '250px' }}
+                  style={{ paddingLeft: '36px', width: '240px' }}
                 />
               </div>
-              <button className="btn btn-outline" style={{ padding: '8px' }} title="Filter">
-                <Filter size={18} />
-              </button>
             </div>
           </div>
 
-          {/* Table */}
-          <div style={{ overflowX: 'auto', padding: '0' }}>
+          <div style={{ overflowX: 'auto' }}>
             <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   {dataColumns.map(col => (
-                    <th key={col} style={{ 
-                      padding: '12px 16px', textAlign: 'left', backgroundColor: 'var(--bg-hover)', 
-                      borderBottom: '2px solid var(--border)', color: 'var(--text-secondary)',
-                      fontWeight: '600', fontSize: '0.85rem', whiteSpace: 'nowrap'
-                    }}>
+                    <th key={col} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-secondary)', background: '#F8FAFC' }}>
                       {col}
                     </th>
                   ))}
-                  {dataColumns.length === 0 && <th style={{ padding: '12px' }}>No Data Available</th>}
                 </tr>
               </thead>
               <tbody>
-                {paginatedData.map((row, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid var(--border)', transition: 'background-color 0.2s' }} className="hover:bg-gray-50">
+                {paginatedData.map((row, idx) => (
+                  <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
                     {dataColumns.map(col => {
-                      let val = row[col];
-                      // Highlight final status column
-                      const isStatusCol = productConfig?.finalStatusCol === col;
-                      let cellContent = val;
-                      if (isStatusCol) {
+                      const val = row[col];
+                      let cellContent = String(val ?? '');
+                      
+                      if (col.includes('status') || col.includes('Status')) {
                         const statusStr = String(val).toLowerCase();
                         if (statusStr.includes('match') && !statusStr.includes('mismatch')) {
                           cellContent = <span className="badge badge-success">{val}</span>;
@@ -710,7 +726,7 @@ export default function ManualReconView() {
                       }
                       
                       return (
-                        <td key={col} style={{ padding: '12px 16px', fontSize: '0.9rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                        <td key={col} style={{ padding: '12px 16px', fontSize: '0.88rem', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                           {cellContent}
                         </td>
                       );
@@ -720,7 +736,7 @@ export default function ManualReconView() {
                 {paginatedData.length === 0 && (
                   <tr>
                     <td colSpan={dataColumns.length || 1} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                      No records found matching your criteria.
+                      No records found matching criteria.
                     </td>
                   </tr>
                 )}
@@ -728,10 +744,9 @@ export default function ManualReconView() {
             </table>
           </div>
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                 Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredData.length)} of {filteredData.length} entries
               </span>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -743,7 +758,7 @@ export default function ManualReconView() {
                 >
                   Previous
                 </button>
-                <div style={{ display: 'flex', alignItems: 'center', padding: '0 8px', fontSize: '0.9rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', padding: '0 8px', fontSize: '0.85rem' }}>
                   Page {currentPage} of {totalPages}
                 </div>
                 <button 
@@ -769,6 +784,7 @@ export default function ManualReconView() {
       {currentStep === 2 && renderStep2()}
       {currentStep === 3 && renderStep3()}
       {currentStep === 4 && renderStep4()}
+      {currentStep === 5 && renderStep5()}
     </div>
   );
 }
