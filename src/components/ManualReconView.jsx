@@ -4,17 +4,9 @@ import { runRecon, exportToExcel, exportReconResults } from '../utils/manualReco
 import {
   Play, CheckCircle, Clock, Upload, Download, RefreshCw, AlertTriangle,
   ChevronRight, FileText, Check, Search, X, ArrowLeft, Layers, Database,
-  Filter, ChevronDown, Tag, Calendar, RotateCcw, Cloud, Server, Zap, HardDrive
+  Filter, ChevronDown, Tag, Calendar, RotateCcw, Cloud, Server, Zap, HardDrive,
+  CheckCircle2, ArrowRight
 } from 'lucide-react';
-
-const wizardSteps = [
-  { id: 1, label: '1. Category' },
-  { id: 2, label: '2. Sub-Product' },
-  { id: 3, label: '3. Date & Cycle' },
-  { id: 4, label: '4. File Upload' },
-  { id: 5, label: '5. Processing' },
-  { id: 6, label: '6. Results' }
-];
 
 export default function ManualReconView() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -32,27 +24,31 @@ export default function ManualReconView() {
   const [businessDate, setBusinessDate] = useState(new Date().toISOString().split('T')[0]);
   const [settlementCycle, setSettlementCycle] = useState('All Cycles (Daily Consolidated)');
 
-  // Step 4 State: File Upload & Auto-Fetch
+  // Step 4 State: Per-File Dedicated Pages (currentFileIndex)
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [uploadedFiles, setUploadedFiles] = useState({});
   const [filePreviews, setFilePreviews] = useState({});
-  const [dragActive, setDragActive] = useState(null);
-  const [isAutoFetching, setIsAutoFetching] = useState(false);
-  const [autoFetchedKeys, setAutoFetchedKeys] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
 
-  // Step 5 State: Processing Engine
+  // Auto-Fetch Animation State
+  const [fetchProgress, setFetchProgress] = useState({}); // { [key]: 0..100 }
+  const [fetchStatus, setFetchStatus] = useState({}); // { [key]: 'idle'|'fetching'|'completed' }
+  const [fetchLogs, setFetchLogs] = useState({}); // { [key]: Array }
+
+  // Processing Engine State
   const [processingStatus, setProcessingStatus] = useState('idle');
   const [processingLogs, setProcessingLogs] = useState([]);
   const [currentProcStepIndex, setCurrentProcStepIndex] = useState(-1);
   const logsEndRef = useRef(null);
 
-  // Step 6 State: Results
+  // Results State
   const [reconResults, setReconResults] = useState(null);
   const [activeTab, setActiveTab] = useState('mismatched');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 50;
 
-  // Initial load: fetch all categories
+  // Initial load: fetch categories
   useEffect(() => {
     try {
       const cats = getCategories();
@@ -62,7 +58,7 @@ export default function ManualReconView() {
     }
   }, []);
 
-  // Helper: check if a source file is an internal system log that can be auto-fetched
+  // Helper: Check if a source is an internal system log that can be auto-fetched
   const isAutoFetchableSource = (srcKey, srcLabel) => {
     const label = (srcLabel || '').toLowerCase();
     const key = (srcKey || '').toLowerCase();
@@ -79,6 +75,15 @@ export default function ManualReconView() {
       key.includes('internal') ||
       key.includes('mw')
     );
+  };
+
+  const getFetchChannelName = (srcKey, srcLabel) => {
+    const label = (srcLabel || '').toLowerCase();
+    const key = (srcKey || '').toLowerCase();
+    if (label.includes('switch') || key.includes('switch')) return 'SFTP Server (sftp://switch.iserveu.in/)';
+    if (label.includes('wallet') || key.includes('wallet')) return 'Internal Wallet DB Ledger';
+    if (label.includes('middleware') || key.includes('middleware') || label.includes('internal')) return 'GCP Cloud Bucket (gs://prod-isurecon/)';
+    return 'Cloud Remote Storage';
   };
 
   // Update available sub-products whenever selectedCategoryId changes
@@ -104,7 +109,10 @@ export default function ManualReconView() {
       }
       setUploadedFiles({});
       setFilePreviews({});
-      setAutoFetchedKeys([]);
+      setFetchProgress({});
+      setFetchStatus({});
+      setFetchLogs({});
+      setCurrentFileIndex(0);
     } else {
       setProductConfig(null);
     }
@@ -131,98 +139,86 @@ export default function ManualReconView() {
     setProductConfig(config);
     setUploadedFiles({});
     setFilePreviews({});
-    setAutoFetchedKeys([]);
+    setFetchProgress({});
+    setFetchStatus({});
+    setFetchLogs({});
+    setCurrentFileIndex(0);
     setCurrentStep(3);
   };
 
-  // --- Step 3 Handler: Proceed to Step 4 File Upload ---
-  const handleProceedToUpload = () => {
+  // --- Step 3 Handler: Proceed to Step 4 (File 1 Page) ---
+  const handleProceedToFiles = () => {
     if (businessDate && settlementCycle) {
+      setCurrentFileIndex(0);
       setCurrentStep(4);
     }
   };
 
-  // --- Step 4 Single File Cloud Auto-Fetch ---
-  const handleSingleSourceAutoFetch = (srcKey, srcLabel) => {
-    setIsAutoFetching(true);
-    const formattedCycle = settlementCycle.replace(/[^a-zA-Z0-9]/g, '_');
+  // --- Auto-Fetch Animation Trigger for a single source file ---
+  const triggerAutoFetchAnimation = (srcKey, srcLabel) => {
+    setFetchStatus(prev => ({ ...prev, [srcKey]: 'fetching' }));
+    setFetchProgress(prev => ({ ...prev, [srcKey]: 0 }));
+    const channel = getFetchChannelName(srcKey, srcLabel);
 
-    setTimeout(() => {
-      const fileName = `AUTO_${srcKey.toUpperCase()}_${businessDate}_${formattedCycle}.csv`;
-      const csvContent = `TxnRefID,RRN,Amount,Date,Status\nTXN1001,612345001,500.00,${businessDate},SUCCESS\nTXN1002,612345002,1250.50,${businessDate},SUCCESS\nTXN1003,612345003,75.25,${businessDate},FAILED`;
-      const mockBlob = new Blob([csvContent], { type: 'text/csv' });
-      const mockFile = new File([mockBlob], fileName, { type: 'text/csv' });
+    const logMessages = [
+      `Connecting to ${channel}...`,
+      `Authenticating OAuth2 / SSH RSA-256 Key for Business Date: ${businessDate}, Cycle: ${settlementCycle}...`,
+      `Streaming transaction log records into local memory buffer...`,
+      `Validating record schemas, RRN keys, and currency amounts...`,
+      `✔ Successfully auto-fetched 18,450 records from Cloud!`
+    ];
 
-      setUploadedFiles(prev => ({ ...prev, [srcKey]: mockFile }));
-      setFilePreviews(prev => ({
+    setFetchLogs(prev => ({ ...prev, [srcKey]: [logMessages[0]] }));
+
+    let currentProg = 0;
+    const interval = setInterval(() => {
+      currentProg += 20;
+      setFetchProgress(prev => ({ ...prev, [srcKey]: currentProg }));
+
+      const msgIndex = Math.min(Math.floor(currentProg / 25), logMessages.length - 1);
+      setFetchLogs(prev => ({
         ...prev,
-        [srcKey]: {
-          cols: ['TxnRefID', 'RRN', 'Amount', 'Date', 'Status'],
-          rows: [
-            ['TXN1001', '612345001', '500.00', businessDate, 'SUCCESS'],
-            ['TXN1002', '612345002', '1250.50', businessDate, 'SUCCESS'],
-            ['TXN1003', '612345003', '75.25', businessDate, 'FAILED']
-          ]
-        }
+        [srcKey]: logMessages.slice(0, msgIndex + 1)
       }));
-      setAutoFetchedKeys(prev => Array.from(new Set([...prev, srcKey])));
-      setIsAutoFetching(false);
-    }, 400);
-  };
 
-  // --- Step 4 Auto-Fetch ALL Internal Cloud Data ---
-  const handleAutoFetchAllCloudData = () => {
-    if (!productConfig || !productConfig.sources) return;
-    setIsAutoFetching(true);
+      if (currentProg >= 100) {
+        clearInterval(interval);
+        setFetchStatus(prev => ({ ...prev, [srcKey]: 'completed' }));
 
-    setTimeout(() => {
-      const newFiles = { ...uploadedFiles };
-      const newPreviews = { ...filePreviews };
-      const fetchedKeys = [...autoFetchedKeys];
-      const formattedCycle = settlementCycle.replace(/[^a-zA-Z0-9]/g, '_');
+        // Create mock File & preview
+        const fileName = `AUTO_${srcKey.toUpperCase()}_${businessDate}_${settlementCycle.replace(/[^a-zA-Z0-9]/g, '_')}.csv`;
+        const csvContent = `TxnRefID,RRN,Amount,Date,Status\nTXN1001,612345001,500.00,${businessDate},SUCCESS\nTXN1002,612345002,1250.50,${businessDate},SUCCESS\nTXN1003,612345003,75.25,${businessDate},FAILED`;
+        const mockBlob = new Blob([csvContent], { type: 'text/csv' });
+        const mockFile = new File([mockBlob], fileName, { type: 'text/csv' });
 
-      productConfig.sources.forEach(src => {
-        if (isAutoFetchableSource(src.key, src.label)) {
-          const fileName = `AUTO_${src.key.toUpperCase()}_${businessDate}_${formattedCycle}.csv`;
-          const csvContent = `TxnRefID,RRN,Amount,Date,Status\nTXN1001,612345001,500.00,${businessDate},SUCCESS\nTXN1002,612345002,1250.50,${businessDate},SUCCESS\nTXN1003,612345003,75.25,${businessDate},FAILED`;
-          const mockBlob = new Blob([csvContent], { type: 'text/csv' });
-          const mockFile = new File([mockBlob], fileName, { type: 'text/csv' });
-
-          newFiles[src.key] = mockFile;
-          newPreviews[src.key] = {
+        setUploadedFiles(prev => ({ ...prev, [srcKey]: mockFile }));
+        setFilePreviews(prev => ({
+          ...prev,
+          [srcKey]: {
             cols: ['TxnRefID', 'RRN', 'Amount', 'Date', 'Status'],
             rows: [
               ['TXN1001', '612345001', '500.00', businessDate, 'SUCCESS'],
               ['TXN1002', '612345002', '1250.50', businessDate, 'SUCCESS'],
               ['TXN1003', '612345003', '75.25', businessDate, 'FAILED']
             ]
-          };
-          fetchedKeys.push(src.key);
-        }
-      });
-
-      setUploadedFiles(newFiles);
-      setFilePreviews(newPreviews);
-      setAutoFetchedKeys(Array.from(new Set(fetchedKeys)));
-      setIsAutoFetching(false);
-    }, 600);
+          }
+        }));
+      }
+    }, 350);
   };
 
-  // --- Step 4 Manual File Handlers ---
-  const handleDrag = (e, sourceKey) => {
+  // --- Manual File Drop & Browse Handlers ---
+  const handleDrag = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(sourceKey);
-    } else if (e.type === "dragleave") {
-      setDragActive(null);
-    }
+    if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
+    else if (e.type === "dragleave") setDragActive(false);
   };
 
   const handleDrop = (e, sourceKey) => {
     e.preventDefault();
     e.stopPropagation();
-    setDragActive(null);
+    setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFile(e.dataTransfer.files[0], sourceKey);
     }
@@ -236,9 +232,8 @@ export default function ManualReconView() {
 
   const handleFile = (file, sourceKey) => {
     setUploadedFiles(prev => ({ ...prev, [sourceKey]: file }));
-    setAutoFetchedKeys(prev => prev.filter(k => k !== sourceKey));
+    setFetchStatus(prev => ({ ...prev, [sourceKey]: 'completed' }));
     
-    // Create preview simulation
     setTimeout(() => {
       setFilePreviews(prev => ({
         ...prev,
@@ -251,7 +246,7 @@ export default function ManualReconView() {
           ]
         }
       }));
-    }, 300);
+    }, 200);
   };
 
   const removeFile = (sourceKey) => {
@@ -265,9 +260,11 @@ export default function ManualReconView() {
       delete newPreviews[sourceKey];
       return newPreviews;
     });
-    setAutoFetchedKeys(prev => prev.filter(k => k !== sourceKey));
+    setFetchStatus(prev => ({ ...prev, [sourceKey]: 'idle' }));
+    setFetchProgress(prev => ({ ...prev, [sourceKey]: 0 }));
   };
 
+  // Check if all required files are present across all sources
   const canStartRecon = () => {
     if (!productConfig || !productConfig.sources) return false;
     return productConfig.sources.every(src => {
@@ -276,6 +273,26 @@ export default function ManualReconView() {
     });
   };
 
+  // Navigation between dedicated file pages
+  const handleNextFilePage = () => {
+    if (!productConfig) return;
+    if (currentFileIndex < productConfig.sources.length - 1) {
+      setCurrentFileIndex(prev => prev + 1);
+    } else {
+      // Last file page -> Proceed to Processing Engine (Step 5)
+      handleStartRecon();
+    }
+  };
+
+  const handlePrevFilePage = () => {
+    if (currentFileIndex > 0) {
+      setCurrentFileIndex(prev => prev - 1);
+    } else {
+      setCurrentStep(3); // Back to Date & Cycle page
+    }
+  };
+
+  // --- Step 5 Start Reconciliation Engine ---
   const handleStartRecon = async () => {
     setCurrentStep(5);
     setProcessingStatus('processing');
@@ -300,7 +317,7 @@ export default function ManualReconView() {
     }
   };
 
-  // --- Step 6 Reset Handler ---
+  // --- Reset All ---
   const handleReset = () => {
     setCurrentStep(1);
     setSelectedCategoryId('');
@@ -308,7 +325,10 @@ export default function ManualReconView() {
     setProductConfig(null);
     setUploadedFiles({});
     setFilePreviews({});
-    setAutoFetchedKeys([]);
+    setFetchProgress({});
+    setFetchStatus({});
+    setFetchLogs({});
+    setCurrentFileIndex(0);
     setReconResults(null);
     setProcessingLogs([]);
     setProcessingStatus('idle');
@@ -337,41 +357,33 @@ export default function ManualReconView() {
   const paginatedData = filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
   const dataColumns = filteredData.length > 0 ? Object.keys(filteredData[0]) : [];
 
-  // --- Render Stepper Header ---
+  // Total dynamic wizard steps: 1(Category) + 2(SubProduct) + 3(DateCycle) + N(File Pages) + 1(Processing) + 1(Results)
+  const totalFilePages = productConfig?.sources?.length || 1;
+
+  // --- Render Top Stepper ---
   const renderStepper = () => (
-    <div className="glass-card" style={{ padding: '18px 28px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      {wizardSteps.map((step, index) => {
-        const isActive = step.id === currentStep;
-        const isCompleted = step.id < currentStep;
-        
-        return (
-          <div key={step.id} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 1 }}>
-              <div style={{
-                width: '34px', height: '34px', borderRadius: '50%',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                backgroundColor: isActive ? 'var(--primary)' : (isCompleted ? 'var(--success)' : 'transparent'),
-                border: `2px solid ${isActive ? 'var(--primary)' : (isCompleted ? 'var(--success)' : 'var(--border)')}`,
-                color: (isActive || isCompleted) ? '#fff' : 'var(--text-secondary)',
-                fontWeight: '600', fontSize: '0.85rem',
-                transition: 'all 0.3s ease'
-              }}>
-                {isCompleted ? <Check size={16} /> : step.id}
-              </div>
-              <span style={{ 
-                marginTop: '6px', fontSize: '0.78rem', fontWeight: isActive ? '700' : '500',
-                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                textAlign: 'center'
-              }}>
-                {step.label}
-              </span>
-            </div>
-            {index < wizardSteps.length - 1 && (
-              <div style={{ flex: 1, height: '2px', backgroundColor: isCompleted ? 'var(--success)' : 'var(--border)', margin: '0 8px', marginTop: '-20px', transition: 'all 0.3s ease' }} />
-            )}
-          </div>
-        );
-      })}
+    <div className="glass-card" style={{ padding: '16px 28px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', fontWeight: '600' }}>
+        <span className={`badge ${currentStep === 1 ? 'badge-primary' : 'badge-neutral'}`}>1. Category</span>
+        <ChevronRight size={14} />
+        <span className={`badge ${currentStep === 2 ? 'badge-primary' : 'badge-neutral'}`}>2. Sub-Product</span>
+        <ChevronRight size={14} />
+        <span className={`badge ${currentStep === 3 ? 'badge-primary' : 'badge-neutral'}`}>3. Date & Cycle</span>
+        <ChevronRight size={14} />
+        <span className={`badge ${currentStep === 4 ? 'badge-primary' : 'badge-neutral'}`}>
+          4. Files ({currentStep === 4 ? `${currentFileIndex + 1}/${totalFilePages}` : totalFilePages})
+        </span>
+        <ChevronRight size={14} />
+        <span className={`badge ${currentStep === 5 ? 'badge-primary' : 'badge-neutral'}`}>5. Processing</span>
+        <ChevronRight size={14} />
+        <span className={`badge ${currentStep === 6 ? 'badge-primary' : 'badge-neutral'}`}>6. Results</span>
+      </div>
+
+      {productConfig && (
+        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+          Target: <strong>{productConfig.name}</strong> • <strong>{businessDate}</strong>
+        </div>
+      )}
     </div>
   );
 
@@ -503,14 +515,14 @@ export default function ManualReconView() {
 
           <button 
             className="btn btn-primary" 
-            onClick={handleProceedToUpload}
+            onClick={handleProceedToFiles}
             style={{ padding: '10px 24px', fontWeight: '700', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}
           >
-            Next: Upload Files <ChevronRight size={18} />
+            Next: Collect Source Files <ChevronRight size={18} />
           </button>
         </div>
 
-        {/* Date & Cycle Selection Controls */}
+        {/* Date & Cycle Controls */}
         <div style={{ background: '#F8FAFC', padding: '32px', borderRadius: '16px', border: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
           <div>
             <label style={{ marginBottom: '10px', fontWeight: '700', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
@@ -556,175 +568,239 @@ export default function ManualReconView() {
     );
   };
 
-  // ─── STEP 4: Upload Source Files (Categorized Auto-Fetch vs User Upload) ───
-  const renderStep4 = () => {
-    if (!productConfig) return null;
-    const hasAutoFetchableSources = productConfig.sources.some(s => isAutoFetchableSource(s.key, s.label));
+  // ─── STEP 4: DEDICATED PER-FILE PAGE (Page for File currentFileIndex + 1 of N) ───
+  const renderStep4PerFilePage = () => {
+    if (!productConfig || !productConfig.sources) return null;
+
+    const totalSources = productConfig.sources.length;
+    const currentSrc = productConfig.sources[currentFileIndex];
+    const isAutoFetchable = isAutoFetchableSource(currentSrc.key, currentSrc.label);
+    const channelName = getFetchChannelName(currentSrc.key, currentSrc.label);
+
+    const uploadedFile = uploadedFiles[currentSrc.key];
+    const preview = filePreviews[currentSrc.key];
+    const status = fetchStatus[currentSrc.key] || 'idle';
+    const progress = fetchProgress[currentSrc.key] || 0;
+    const logs = fetchLogs[currentSrc.key] || [];
+
+    const isCurrentFileReady = !!uploadedFile;
+    const isLastFile = currentFileIndex === totalSources - 1;
 
     return (
-      <div className="animate-fade-in glass-card" style={{ padding: '28px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
+      <div className="animate-fade-in glass-card" style={{ padding: '32px' }}>
+        {/* Header with Navigation and Progress Badge */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button 
               className="btn btn-outline" 
-              onClick={() => setCurrentStep(3)}
+              onClick={handlePrevFilePage}
               style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              <ArrowLeft size={16} /> Back to Date & Cycle
+              <ArrowLeft size={16} /> {currentFileIndex === 0 ? 'Back to Setup' : 'Previous File'}
             </button>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Step 4: Source File Collection for {productConfig.name}</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="badge badge-primary" style={{ fontSize: '0.78rem' }}>
+                  Source File {currentFileIndex + 1} of {totalSources}
+                </span>
+                <h2 style={{ margin: 0, fontSize: '1.25rem' }}>{currentSrc.label}</h2>
+              </div>
               <p style={{ margin: '2px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.86rem' }}>
-                Date: <strong>{businessDate}</strong> • Cycle: <strong>{settlementCycle}</strong>
+                Product: <strong>{productConfig.name}</strong> • Date: <strong>{businessDate}</strong> • Cycle: <strong>{settlementCycle}</strong>
               </p>
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: '12px' }}>
-            {hasAutoFetchableSources && (
+            {isLastFile ? (
               <button 
-                className="btn btn-outline"
-                onClick={handleAutoFetchAllCloudData}
-                disabled={isAutoFetching}
-                style={{ padding: '10px 18px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: '600', borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                className="btn btn-primary" 
+                onClick={handleStartRecon}
+                disabled={!canStartRecon()}
+                style={{ padding: '10px 24px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: '700' }}
               >
-                {isAutoFetching ? <RefreshCw className="animate-spin" size={16} /> : <Zap size={16} />} 
-                ⚡ Auto-Fetch Internal Cloud Data (GCP & SFTP)
+                <Play size={18} /> Start Reconciliation Engine
+              </button>
+            ) : (
+              <button 
+                className="btn btn-primary" 
+                onClick={handleNextFilePage}
+                disabled={currentSrc.required && !isCurrentFileReady}
+                style={{ padding: '10px 24px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: '700' }}
+              >
+                Next File ({currentFileIndex + 2}/{totalSources}) <ChevronRight size={18} />
               </button>
             )}
-
-            <button 
-              className="btn btn-primary" 
-              onClick={handleStartRecon}
-              disabled={!canStartRecon()}
-              style={{ padding: '10px 24px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: '700' }}
-            >
-              <Play size={18} /> Start Reconciliation Engine
-            </button>
           </div>
         </div>
 
-        {/* Source File Collection Grid */}
-        <label style={{ display: 'block', marginBottom: '14px', fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-          Required Source Files ({productConfig.sources?.length || 0})
-        </label>
-        <div style={{ display: 'grid', gridTemplateColumns: productConfig.sources.length > 2 ? 'repeat(2, 1fr)' : '1fr', gap: '20px' }}>
-          {productConfig.sources.map(src => {
-            const uploadedFile = uploadedFiles[src.key];
-            const isDrag = dragActive === src.key;
-            const preview = filePreviews[src.key];
-            const autoFetchable = isAutoFetchableSource(src.key, src.label);
-            const isAutoFetched = autoFetchedKeys.includes(src.key);
-
-            return (
-              <div 
-                key={src.key} 
-                style={{ 
-                  border: `2px dashed ${isDrag ? 'var(--primary)' : (uploadedFile ? 'var(--success)' : 'var(--border)')}`,
-                  borderRadius: '12px', padding: '20px', textAlign: 'center',
-                  backgroundColor: isDrag ? 'rgba(17,157,176,0.05)' : (uploadedFile ? 'rgba(16,185,129,0.03)' : 'white'),
-                  transition: 'all 0.2s ease'
-                }}
-                onDragEnter={(e) => handleDrag(e, src.key)}
-                onDragOver={(e) => handleDrag(e, src.key)}
-                onDragLeave={(e) => handleDrag(e, src.key)}
-                onDrop={(e) => handleDrop(e, src.key)}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{src.label}</span>
-                    {autoFetchable ? (
-                      <span style={{ fontSize: '0.7rem', color: '#0284c7', background: 'rgba(2, 132, 199, 0.1)', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>
-                        ⚡ Auto-Fetch (GCP / SFTP)
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: '0.7rem', color: '#d97706', background: 'rgba(217, 119, 6, 0.1)', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>
-                        📂 User Upload (Bank/NPCI File)
-                      </span>
-                    )}
+        {/* ─── OPTION A: AUTO-FETCHABLE SOURCE FILE DEDICATED PAGE ─── */}
+        {isAutoFetchable ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Cloud Auto-Fetch Banner Card */}
+            <div style={{ background: '#F8FAFC', borderRadius: '16px', padding: '28px', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  <div style={{ width: '52px', height: '52px', borderRadius: '12px', background: 'rgba(17, 157, 176, 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Cloud size={28} />
                   </div>
-
-                  {src.required ? (
-                    <span className="badge badge-danger">Required</span>
-                  ) : (
-                    <span className="badge badge-warning">Optional</span>
-                  )}
+                  <div>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--primary)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Automated System Log Extract
+                    </span>
+                    <h3 style={{ margin: '2px 0 4px 0', fontSize: '1.2rem' }}>{currentSrc.label}</h3>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                      Location: <strong>{channelName}</strong>
+                    </p>
+                  </div>
                 </div>
 
-                {!uploadedFile ? (
-                  <div style={{ padding: '16px 0' }}>
-                    {autoFetchable ? (
-                      <div>
-                        <Cloud size={32} style={{ color: 'var(--primary)', marginBottom: '8px' }} />
-                        <p style={{ margin: '0 0 10px 0', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
-                          Internal log extract available on Cloud (GCP / SFTP)
-                        </p>
-                        <button 
-                          className="btn btn-outline"
-                          onClick={() => handleSingleSourceAutoFetch(src.key, src.label)}
-                          style={{ padding: '6px 16px', fontSize: '0.85rem', color: 'var(--primary)', borderColor: 'var(--primary)', fontWeight: '600' }}
-                        >
-                          ⚡ Auto-Fetch from Cloud
-                        </button>
-                      </div>
-                    ) : (
-                      <div>
-                        <Upload size={32} style={{ color: 'var(--text-secondary)', marginBottom: '8px' }} />
-                        <p style={{ margin: '0 0 6px 0', fontSize: '0.9rem', fontWeight: '500' }}>
-                          Drag & drop file here, or{' '}
-                          <label style={{ color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline' }}>
-                            browse
-                            <input type="file" accept=".xlsx, .xls, .csv" onChange={(e) => handleFileInput(e, src.key)} style={{ display: 'none' }} />
-                          </label>
-                        </p>
-                        <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Supports .xlsx, .xls, .csv</p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="animate-fade-in" style={{ textAlign: 'left' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <FileText size={22} style={{ color: isAutoFetched ? 'var(--primary)' : 'var(--success)' }} />
-                        <div>
-                          <p style={{ margin: 0, fontWeight: '600', fontSize: '0.88rem' }}>{uploadedFile.name}</p>
-                          <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            {(uploadedFile.size / 1024).toFixed(1)} KB • {isAutoFetched ? '⚡ Auto-Fetched from Cloud' : '📂 User Uploaded'}
-                          </p>
-                        </div>
-                      </div>
-                      <button onClick={() => removeFile(src.key)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>
-                        <X size={16} />
-                      </button>
-                    </div>
-
-                    {preview && (
-                      <div style={{ marginTop: '12px' }}>
-                        <p style={{ fontSize: '0.78rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>Structure Preview</p>
-                        <div style={{ overflowX: 'auto', background: '#F8FAFC', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                          <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                                {preview.cols.map(c => <th key={c} style={{ padding: '5px 8px', textAlign: 'left' }}>{c}</th>)}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {preview.rows.map((r, i) => (
-                                <tr key={i} style={{ borderBottom: i < preview.rows.length - 1 ? '1px solid #E2E8F0' : 'none' }}>
-                                  {r.map((val, j) => <td key={j} style={{ padding: '5px 8px' }}>{val}</td>)}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => triggerAutoFetchAnimation(currentSrc.key, currentSrc.label)}
+                  disabled={status === 'fetching'}
+                  style={{ padding: '10px 20px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: '700' }}
+                >
+                  {status === 'fetching' ? <RefreshCw className="animate-spin" size={18} /> : <Zap size={18} />} 
+                  {status === 'completed' ? '⚡ Re-Fetch from Cloud' : '⚡ Start Auto-Fetch Stream'}
+                </button>
               </div>
-            );
-          })}
-        </div>
+
+              {/* High-Tech Auto-Fetch Progress & Terminal Console */}
+              {(status === 'fetching' || status === 'completed') && (
+                <div className="animate-fade-in" style={{ marginTop: '20px' }}>
+                  {/* Progress Bar */}
+                  <div style={{ marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '6px', fontWeight: '600' }}>
+                      <span style={{ color: status === 'completed' ? 'var(--success)' : 'var(--primary)' }}>
+                        {status === 'completed' ? '✔ Stream Complete (100%)' : `Streaming Cloud Logs (${progress}%)...`}
+                      </span>
+                      <span>{progress}%</span>
+                    </div>
+                    <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--border)', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{ width: `${progress}%`, height: '100%', backgroundColor: status === 'completed' ? 'var(--success)' : 'var(--primary)', transition: 'width 0.3s ease' }} />
+                    </div>
+                  </div>
+
+                  {/* Live Stream Terminal Logs */}
+                  <div style={{ backgroundColor: '#1b2a3e', borderRadius: '10px', padding: '16px 20px', fontFamily: 'monospace', color: '#e2e8f0', fontSize: '0.85rem', maxHeight: '180px', overflowY: 'auto' }}>
+                    {logs.map((logMsg, i) => (
+                      <div key={i} style={{ marginBottom: '4px', color: logMsg.includes('✔') ? '#34d399' : '#94a3b8' }}>
+                        {logMsg}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* File Data Structure Preview */}
+            {preview && (
+              <div className="animate-fade-in glass-card" style={{ padding: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <FileText size={20} color="var(--success)" />
+                    <span style={{ fontWeight: '700', fontSize: '0.95rem' }}>Auto-Fetched Stream Preview ({uploadedFile?.name})</span>
+                  </div>
+                  <span className="badge badge-success">✔ File Ready for Recon</span>
+                </div>
+
+                <div style={{ overflowX: 'auto', background: '#F8FAFC', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border)', background: '#EDF2F7' }}>
+                        {preview.cols.map(c => <th key={c} style={{ padding: '8px 12px', textAlign: 'left' }}>{c}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.rows.map((r, i) => (
+                        <tr key={i} style={{ borderBottom: i < preview.rows.length - 1 ? '1px solid #E2E8F0' : 'none' }}>
+                          {r.map((val, j) => <td key={j} style={{ padding: '8px 12px' }}>{val}</td>)}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* ─── OPTION B: USER-UPLOADED EXTERNAL SOURCE FILE DEDICATED PAGE ─── */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div 
+              style={{ 
+                border: `2px dashed ${dragActive ? 'var(--primary)' : (uploadedFile ? 'var(--success)' : 'var(--border)')}`,
+                borderRadius: '16px', padding: '40px', textAlign: 'center',
+                backgroundColor: dragActive ? 'rgba(17,157,176,0.05)' : (uploadedFile ? 'rgba(16,185,129,0.03)' : 'white'),
+                transition: 'all 0.2s ease'
+              }}
+              onDragEnter={handleDrag}
+              onDragOver={handleDrag}
+              onDragLeave={handleDrag}
+              onDrop={(e) => handleDrop(e, currentSrc.key)}
+            >
+              <div style={{ marginBottom: '16px' }}>
+                <span className="badge badge-warning" style={{ fontSize: '0.8rem', padding: '4px 12px' }}>
+                  External Counterparty File (Bank / NPCI Portal)
+                </span>
+              </div>
+
+              {!uploadedFile ? (
+                <div style={{ padding: '20px 0' }}>
+                  <Upload size={48} style={{ color: 'var(--primary)', marginBottom: '12px' }} />
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: '1.2rem' }}>Upload {currentSrc.label}</h3>
+                  <p style={{ margin: '0 0 16px 0', fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
+                    Drag and drop file here, or{' '}
+                    <label style={{ color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline', fontWeight: '600' }}>
+                      browse computer
+                      <input type="file" accept=".xlsx, .xls, .csv" onChange={(e) => handleFileInput(e, currentSrc.key)} style={{ display: 'none' }} />
+                    </label>
+                  </p>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Supports .xlsx, .xls, .csv</p>
+                </div>
+              ) : (
+                <div className="animate-fade-in" style={{ textAlign: 'left' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '16px 20px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <FileText size={28} style={{ color: 'var(--success)' }} />
+                      <div>
+                        <p style={{ margin: 0, fontWeight: '700', fontSize: '1rem' }}>{uploadedFile.name}</p>
+                        <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          {(uploadedFile.size / 1024).toFixed(1)} KB • Upload Complete
+                        </p>
+                      </div>
+                    </div>
+                    <button onClick={() => removeFile(currentSrc.key)} className="btn btn-outline" style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}>
+                      <X size={16} /> Remove File
+                    </button>
+                  </div>
+
+                  {preview && (
+                    <div style={{ marginTop: '20px' }}>
+                      <p style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px' }}>File Preview</p>
+                      <div style={{ overflowX: 'auto', background: '#F8FAFC', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                        <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid var(--border)', background: '#EDF2F7' }}>
+                              {preview.cols.map(c => <th key={c} style={{ padding: '8px 12px', textAlign: 'left' }}>{c}</th>)}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {preview.rows.map((r, i) => (
+                              <tr key={i} style={{ borderBottom: i < preview.rows.length - 1 ? '1px solid #E2E8F0' : 'none' }}>
+                                {r.map((val, j) => <td key={j} style={{ padding: '8px 12px' }}>{val}</td>)}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -947,7 +1023,7 @@ export default function ManualReconView() {
       {currentStep === 1 && renderStep1()}
       {currentStep === 2 && renderStep2()}
       {currentStep === 3 && renderStep3()}
-      {currentStep === 4 && renderStep4()}
+      {currentStep === 4 && renderStep4PerFilePage()}
       {currentStep === 5 && renderStep5()}
       {currentStep === 6 && renderStep6()}
     </div>
