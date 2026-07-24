@@ -61,6 +61,22 @@ const HistoryLog = () => {
     return matchSearch && matchCategory && matchProduct && matchDate && matchCycle;
   });
 
+  // Dependent Sub-Products filtering based on selected Category
+  const displayedProducts = filterCategory
+    ? allProductsList.filter(prod => (prod.category || '').toLowerCase() === filterCategory.toLowerCase())
+    : allProductsList;
+
+  const handleCategoryChange = (catId) => {
+    setFilterCategory(catId);
+    if (catId) {
+      const validProds = allProductsList.filter(p => (p.category || '').toLowerCase() === catId.toLowerCase());
+      const isStillValid = validProds.some(p => p.id === filterProduct || p.name === filterProduct);
+      if (!isStillValid) {
+        setFilterProduct('');
+      }
+    }
+  };
+
   const clearFilters = () => {
     setSearchQuery('');
     setFilterCategory('');
@@ -124,7 +140,7 @@ const HistoryLog = () => {
           </label>
           <select 
             value={filterCategory} 
-            onChange={e => setFilterCategory(e.target.value)}
+            onChange={e => handleCategoryChange(e.target.value)}
             className="settings-input"
             style={{ width: '100%', fontSize: '0.85rem', fontWeight: '500' }}
           >
@@ -135,10 +151,10 @@ const HistoryLog = () => {
           </select>
         </div>
 
-        {/* Filter by Product */}
+        {/* Filter by Sub-Product (Filtered by Category) */}
         <div>
           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '6px' }}>
-            Sub-Product
+            Sub-Product {filterCategory ? `(${displayedProducts.length})` : ''}
           </label>
           <select 
             value={filterProduct} 
@@ -146,8 +162,8 @@ const HistoryLog = () => {
             className="settings-input"
             style={{ width: '100%', fontSize: '0.85rem', fontWeight: '500' }}
           >
-            <option value="">All Products</option>
-            {allProductsList.map(prod => (
+            <option value="">{filterCategory ? 'All Category Products' : 'All Products'}</option>
+            {displayedProducts.map(prod => (
               <option key={prod.id} value={prod.id}>{prod.name}</option>
             ))}
           </select>
