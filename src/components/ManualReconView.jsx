@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getCategories, getProductsByCategory, getProductById, getAllProducts } from '../utils/productConfigs';
-import { runRecon, exportToExcel, exportReconResults } from '../utils/manualReconEngine';
+import { runRecon, exportToExcel, exportReconResults, exportMatchedFile, exportMismatchedFile } from '../utils/manualReconEngine';
 import {
   Play, CheckCircle, Clock, Upload, Download, RefreshCw, AlertTriangle,
   ChevronRight, FileText, Check, Search, X, ArrowLeft, Layers, Database,
@@ -873,12 +873,23 @@ export default function ManualReconView() {
               {productConfig?.name} • Business Date: <strong>{businessDate}</strong> • Cycle: <strong>{settlementCycle}</strong>
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button className="btn btn-outline" onClick={handleReset} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <button className="btn btn-outline" onClick={handleReset} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
               <RefreshCw size={16} /> Run Another Recon
             </button>
-            <button className="btn btn-primary" onClick={() => exportReconResults(reconResults.matchedData, reconResults.mismatchedData, productConfig, reconResults.allData)} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <Download size={16} /> Export Final Report
+            <button 
+              className="btn btn-outline" 
+              onClick={() => exportMatchedFile(reconResults.matchedData, productConfig, businessDate, settlementCycle)}
+              style={{ display: 'flex', gap: '8px', alignItems: 'center', borderColor: 'var(--success)', color: 'var(--success)', fontWeight: '600' }}
+            >
+              <Download size={16} /> 🟢 Download Matched File ({summary?.matched || 0})
+            </button>
+            <button 
+              className="btn btn-primary" 
+              onClick={() => exportMismatchedFile(reconResults.mismatchedData, productConfig, businessDate, settlementCycle)}
+              style={{ display: 'flex', gap: '8px', alignItems: 'center', backgroundColor: '#ef4444', borderColor: '#ef4444', color: 'white', fontWeight: '600' }}
+            >
+              <Download size={16} /> 🔴 Download Mismatched File ({summary?.mismatched || 0})
             </button>
           </div>
         </div>

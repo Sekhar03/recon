@@ -527,3 +527,42 @@ export function exportReconResults(matchedData, mismatchedData, productConfig, a
   const filename = `${productConfig.id}_recon_${new Date().toISOString().split('T')[0]}`;
   XLSX.writeFile(workbook, `${filename}.xlsx`);
 }
+
+/**
+ * Export ONLY the Matched transactions file (.xlsx)
+ */
+export function exportMatchedFile(matchedData, productConfig, businessDate = '', settlementCycle = '') {
+  if (!matchedData || matchedData.length === 0) {
+    alert('No matched records to export.');
+    return;
+  }
+  const formattedCycle = (settlementCycle || 'Consolidated').replace(/[^a-zA-Z0-9]/g, '_');
+  const dateStr = businessDate || new Date().toISOString().split('T')[0];
+  const filename = `${productConfig.id || 'Product'}_MATCHED_${dateStr}_${formattedCycle}`;
+
+  const worksheet = XLSX.utils.json_to_sheet(matchedData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Matched Records');
+
+  XLSX.writeFile(workbook, `${filename}.xlsx`);
+}
+
+/**
+ * Export ONLY the Mismatched / Exceptions transactions file (.xlsx)
+ */
+export function exportMismatchedFile(mismatchedData, productConfig, businessDate = '', settlementCycle = '') {
+  if (!mismatchedData || mismatchedData.length === 0) {
+    alert('No mismatched records to export.');
+    return;
+  }
+  const formattedCycle = (settlementCycle || 'Consolidated').replace(/[^a-zA-Z0-9]/g, '_');
+  const dateStr = businessDate || new Date().toISOString().split('T')[0];
+  const filename = `${productConfig.id || 'Product'}_MISMATCHED_${dateStr}_${formattedCycle}`;
+
+  const worksheet = XLSX.utils.json_to_sheet(mismatchedData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Mismatched Exceptions');
+
+  XLSX.writeFile(workbook, `${filename}.xlsx`);
+}
+
