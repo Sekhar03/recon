@@ -146,6 +146,14 @@ export default function ManualReconView() {
     setCurrentStep(3);
   };
 
+  // Helper: Get ordered sources so User-Uploaded files appear FIRST, followed by Auto-Fetch files
+  const getOrderedSources = (config) => {
+    if (!config || !config.sources) return [];
+    const uploadFiles = config.sources.filter(s => !isAutoFetchableSource(s.key, s.label));
+    const autoFetchFiles = config.sources.filter(s => isAutoFetchableSource(s.key, s.label));
+    return [...uploadFiles, ...autoFetchFiles];
+  };
+
   // --- Step 3 Handler: Proceed to Step 4 (File 1 Page) ---
   const handleProceedToFiles = () => {
     if (businessDate && settlementCycle) {
@@ -156,12 +164,15 @@ export default function ManualReconView() {
 
   // --- Auto-start Cloud Fetch animation as soon as an auto-fetchable file page renders ---
   useEffect(() => {
-    if (currentStep === 4 && productConfig && productConfig.sources && productConfig.sources[currentFileIndex]) {
-      const currentSrc = productConfig.sources[currentFileIndex];
-      if (isAutoFetchableSource(currentSrc.key, currentSrc.label)) {
-        const currentStatus = fetchStatus[currentSrc.key];
-        if (!currentStatus || currentStatus === 'idle') {
-          triggerAutoFetchAnimation(currentSrc.key, currentSrc.label);
+    if (currentStep === 4 && productConfig) {
+      const orderedSources = getOrderedSources(productConfig);
+      if (orderedSources[currentFileIndex]) {
+        const currentSrc = orderedSources[currentFileIndex];
+        if (isAutoFetchableSource(currentSrc.key, currentSrc.label)) {
+          const currentStatus = fetchStatus[currentSrc.key];
+          if (!currentStatus || currentStatus === 'idle') {
+            triggerAutoFetchAnimation(currentSrc.key, currentSrc.label);
+          }
         }
       }
     }
@@ -289,7 +300,8 @@ export default function ManualReconView() {
   // Navigation between dedicated file pages
   const handleNextFilePage = () => {
     if (!productConfig) return;
-    if (currentFileIndex < productConfig.sources.length - 1) {
+    const orderedSources = getOrderedSources(productConfig);
+    if (currentFileIndex < orderedSources.length - 1) {
       setCurrentFileIndex(prev => prev + 1);
     } else {
       // Last file page -> Proceed to Processing Engine (Step 5)
@@ -371,7 +383,8 @@ export default function ManualReconView() {
   const dataColumns = filteredData.length > 0 ? Object.keys(filteredData[0]) : [];
 
   // Total dynamic wizard steps: 1(Category) + 2(SubProduct) + 3(DateCycle) + N(File Pages) + 1(Processing) + 1(Results)
-  const totalFilePages = productConfig?.sources?.length || 1;
+  const orderedSourcesList = getOrderedSources(productConfig);
+  const totalFilePages = orderedSourcesList.length || 1;
 
   // --- Render Top Stepper ---
   const renderStepper = () => (
@@ -585,8 +598,11 @@ export default function ManualReconView() {
   const renderStep4PerFilePage = () => {
     if (!productConfig || !productConfig.sources) return null;
 
-    const totalSources = productConfig.sources.length;
-    const currentSrc = productConfig.sources[currentFileIndex];
+    const orderedSources = getOrderedSources(productConfig);
+    const totalSources = orderedSources.length;
+    const currentSrc = orderedSources[currentFileIndex];
+    if (!currentSrc) return null;
+
     const isAutoFetchable = isAutoFetchableSource(currentSrc.key, currentSrc.label);
     const channelName = getFetchChannelName(currentSrc.key, currentSrc.label);
 
