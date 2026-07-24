@@ -1,6 +1,6 @@
 // Local Storage Store for Persistent Reconciliation Job Archives
 
-const STORAGE_KEY = 'iserveu_recon_job_archives_v1';
+const STORAGE_KEY = 'iserveu_recon_job_archives_v2';
 
 export const getStoredJobs = () => {
   try {
@@ -31,47 +31,104 @@ export const getJobById = (jobId) => {
   return jobs.find(j => j.jobId === jobId) || null;
 };
 
-// Seed default history jobs if empty
+// Seed default history jobs across various products
 function getDefaultSeedJobs() {
-  const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+  const dateStr = new Date().toISOString().split('T')[0];
+  const dateCompact = dateStr.replace(/-/g, '');
+
   return [
     {
-      jobId: `JOB-UPI-${dateStr}-8492`,
-      date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      jobId: `JOB-AEPS-${dateCompact}-8492`,
+      productName: 'NSDL AEPS',
+      productId: 'nsdlaeps',
+      category: 'aeps',
+      date: dateStr,
       time: '09:35 AM',
-      cycle: 'Cycle 1 (09:30 AM)',
+      cycle: 'Cycle 1 (00:00 - 08:00)',
       status: 'COMPLETED',
-      matchedCount: 285,
-      mismatchedCount: 15,
-      matchRate: '95.0%',
-      netSettlement: '710,678.84',
-      payoutRowCount: 2,
-      matchedList: Array.from({ length: 15 }, (_, i) => ({
-        'Transaction ID': `TXN_SEED_${i+1}`,
-        'RRN': `612345${String(i+1).padStart(6, '0')}`,
-        'Payer VPA': `user${i+1}@upi`,
-        'Payee VPA': 'merchant@iserveu',
-        'Amount': '2500.00',
-        'NPCI Status': 'Success',
-        'Switch Status': 'Success',
-        'MW Status': 'Success',
-        'Wallet Status': 'Success',
-        'Status': 'Matched'
+      totalRecords: 1250,
+      matchedCount: 1180,
+      mismatchedCount: 70,
+      matchRate: '94.4%',
+      elapsedTime: '2.1s',
+      matchedList: Array.from({ length: 10 }, (_, i) => ({
+        'Transaction ID': `TXN_AEPS_${i+1}`,
+        'RRN': `612345000${i+1}`,
+        'Amount': '500.00',
+        'Date': dateStr,
+        'Status': 'MATCHED'
       })),
-      mismatchedList: [
-        { 'Transaction ID': 'TXN_ERR_01', 'RRN': '612345999001', 'Payer VPA': 'payer1@upi', 'Payee VPA': 'merchant@iserveu', 'Amount': '1500.00', 'NPCI Status': 'Pending', 'Switch Status': 'Success', 'MW Status': 'Success', 'Wallet Status': 'Success', 'Label': 'Credit adjustment likely needed', 'Notes': 'Pending response code in URCS' }
-      ],
-      gefuFlatFileContent: 'HDR20260723NSDL0000001\nDTL501001234DR00000002500000PAYMENT\nFTR00000100000002500000',
-      gefuAccountingLedger: [
-        { 'Account Number': '501001234', 'Dr/Cr': 'DR', 'Amount': 2500.00, 'Narration': 'UPI Settlement Net' }
-      ],
-      settlementRows: [
-        { userName: 'merchant_01', count: 285, txnAmount: 712500.00, interchange: 356.25, switchingFee: 35.63, bankShare: 1429.28, netSettlement: 710678.84 }
-      ],
-      payoutRows: [
-        { clientReferenceNo: 'PO_merchant_01_01', username: 'merchant_01', beneName: 'Merchant Store', beneAccountNo: '501001234', beneifsc: 'HDFC0001234', paramA: 'UPI_SETTL_REM', amount: '210678.84' },
-        { clientReferenceNo: 'PO_merchant_01_02', username: 'merchant_01', beneName: 'Merchant Store', beneAccountNo: '501001234', beneifsc: 'HDFC0001234', paramA: 'UPI_SETTL_MAX', amount: '500000.00' }
-      ]
+      mismatchedList: Array.from({ length: 5 }, (_, i) => ({
+        'Transaction ID': `ERR_AEPS_${i+1}`,
+        'RRN': `612345999${i+1}`,
+        'Amount': '1250.00',
+        'Date': dateStr,
+        'Status': 'MISMATCHED',
+        'Reason': 'Amount mismatch between NPCI and Switch'
+      })),
+      productConfig: { id: 'nsdlaeps', name: 'NSDL AEPS' }
+    },
+    {
+      jobId: `JOB-UPI-${dateCompact}-9102`,
+      productName: 'Dynamic UPI',
+      productId: 'dynamicupi',
+      category: 'upi',
+      date: dateStr,
+      time: '11:15 AM',
+      cycle: 'All Cycles (Daily Consolidated)',
+      status: 'COMPLETED',
+      totalRecords: 3400,
+      matchedCount: 3310,
+      mismatchedCount: 90,
+      matchRate: '97.4%',
+      elapsedTime: '3.4s',
+      matchedList: Array.from({ length: 10 }, (_, i) => ({
+        'Transaction ID': `TXN_UPI_${i+1}`,
+        'RRN': `819203000${i+1}`,
+        'Amount': '150.00',
+        'Date': dateStr,
+        'Status': 'MATCHED'
+      })),
+      mismatchedList: Array.from({ length: 5 }, (_, i) => ({
+        'Transaction ID': `ERR_UPI_${i+1}`,
+        'RRN': `819203999${i+1}`,
+        'Amount': '150.00',
+        'Date': dateStr,
+        'Status': 'MISMATCHED',
+        'Reason': 'Pending response in URCS'
+      })),
+      productConfig: { id: 'dynamicupi', name: 'Dynamic UPI' }
+    },
+    {
+      jobId: `JOB-MATM-${dateCompact}-4419`,
+      productName: 'MATM 4-Way Txn Recon',
+      productId: 'matm4way',
+      category: 'matm',
+      date: dateStr,
+      time: '02:40 PM',
+      cycle: 'Cycle 2 (08:00 - 16:00)',
+      status: 'COMPLETED',
+      totalRecords: 890,
+      matchedCount: 840,
+      mismatchedCount: 50,
+      matchRate: '94.4%',
+      elapsedTime: '1.8s',
+      matchedList: Array.from({ length: 10 }, (_, i) => ({
+        'Transaction ID': `TXN_MATM_${i+1}`,
+        'RRN': `901234000${i+1}`,
+        'Amount': '2000.00',
+        'Date': dateStr,
+        'Status': 'MATCHED'
+      })),
+      mismatchedList: Array.from({ length: 5 }, (_, i) => ({
+        'Transaction ID': `ERR_MATM_${i+1}`,
+        'RRN': `901234999${i+1}`,
+        'Amount': '2000.00',
+        'Date': dateStr,
+        'Status': 'MISMATCHED',
+        'Reason': 'Switch status failed'
+      })),
+      productConfig: { id: 'matm4way', name: 'MATM 4-Way Txn Recon' }
     }
   ];
 }

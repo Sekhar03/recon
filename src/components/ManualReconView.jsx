@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getCategories, getProductsByCategory, getProductById, getAllProducts } from '../utils/productConfigs';
 import { runRecon, exportToExcel, exportReconResults, exportMatchedFile, exportMismatchedFile } from '../utils/manualReconEngine';
+import { saveJobToHistory } from '../utils/jobHistoryStore';
 import {
   Play, CheckCircle, Clock, Upload, Download, RefreshCw, AlertTriangle,
   ChevronRight, FileText, Check, Search, X, ArrowLeft, Layers, Database,
@@ -331,6 +332,33 @@ export default function ManualReconView() {
       });
       
       setReconResults(results);
+
+      // Save execution job automatically to Job Archives
+      try {
+        const newJob = {
+          jobId: `JOB-${(productConfig.id || 'RECON').toUpperCase()}-${businessDate.replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`,
+          productName: productConfig.name,
+          productId: productConfig.id,
+          category: productConfig.category,
+          date: businessDate,
+          time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          cycle: settlementCycle,
+          status: 'COMPLETED',
+          totalRecords: results.summary.totalRecords,
+          matchedCount: results.summary.matched,
+          mismatchedCount: results.summary.mismatched,
+          matchRate: results.summary.matchRate,
+          elapsedTime: results.summary.elapsedTime,
+          matchedList: results.matchedData,
+          mismatchedList: results.mismatchedData,
+          allList: results.allData,
+          productConfig: productConfig
+        };
+        saveJobToHistory(newJob);
+      } catch (saveErr) {
+        console.warn("Failed to auto-save job to archives:", saveErr);
+      }
+
       setProcessingStatus('completed');
       setTimeout(() => {
         setCurrentStep(6);
