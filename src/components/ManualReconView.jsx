@@ -8,11 +8,11 @@ import {
 } from 'lucide-react';
 
 const wizardSteps = [
-  { id: 1, label: 'Select Category' },
-  { id: 2, label: 'Sub-Product, Cycle & Date' },
-  { id: 3, label: 'Upload Files' },
-  { id: 4, label: 'Processing' },
-  { id: 5, label: 'Results' }
+  { id: 1, label: '1. Select Category' },
+  { id: 2, label: '2. Select Sub-Product' },
+  { id: 3, label: '3. Date, Cycle & Upload' },
+  { id: 4, label: '4. Processing' },
+  { id: 5, label: '5. Results' }
 ];
 
 export default function ManualReconView() {
@@ -22,20 +22,20 @@ export default function ManualReconView() {
   // Step 1 State: Category Selection
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
 
-  // Step 2 State: Sub-Product, Settlement Cycle & Business Date
+  // Step 2 State: Sub-Product Selection
   const [availableProducts, setAvailableProducts] = useState([]);
   const [selectedProductId, setSelectedProductId] = useState('');
-  const [settlementCycle, setSettlementCycle] = useState('All Cycles (Daily Consolidated)');
-  const [businessDate, setBusinessDate] = useState(new Date().toISOString().split('T')[0]);
   const [productConfig, setProductConfig] = useState(null);
 
-  // Step 3 State: Upload Files
+  // Step 3 State: Date, Cycle & File Upload
+  const [settlementCycle, setSettlementCycle] = useState('All Cycles (Daily Consolidated)');
+  const [businessDate, setBusinessDate] = useState(new Date().toISOString().split('T')[0]);
   const [uploadedFiles, setUploadedFiles] = useState({});
   const [filePreviews, setFilePreviews] = useState({});
   const [dragActive, setDragActive] = useState(null);
 
   // Step 4 State: Processing
-  const [processingStatus, setProcessingStatus] = useState('idle'); // idle, processing, completed, error
+  const [processingStatus, setProcessingStatus] = useState('idle');
   const [processingLogs, setProcessingLogs] = useState([]);
   const [currentProcStepIndex, setCurrentProcStepIndex] = useState(-1);
   const logsEndRef = useRef(null);
@@ -63,11 +63,6 @@ export default function ManualReconView() {
       try {
         const prods = getProductsByCategory(selectedCategoryId);
         setAvailableProducts(prods || []);
-        if (prods && prods.length > 0) {
-          setSelectedProductId(prods[0].id);
-        } else {
-          setSelectedProductId('');
-        }
       } catch (e) {
         console.warn("Failed to load sub-products", e);
       }
@@ -97,20 +92,24 @@ export default function ManualReconView() {
     }
   }, [processingLogs]);
 
-  // --- Step 1 Handlers ---
+  // --- Step 1 Handler: Category Click -> Auto Go to Step 2 ---
   const handleSelectCategory = (catId) => {
     setSelectedCategoryId(catId);
+    setSelectedProductId('');
     setCurrentStep(2);
   };
 
-  // --- Step 2 Handlers ---
-  const handleProceedToUpload = () => {
-    if (selectedProductId && businessDate) {
-      setCurrentStep(3);
-    }
+  // --- Step 2 Handler: Sub-Product Click -> Auto Go to Step 3 ---
+  const handleSelectSubProduct = (prodId) => {
+    setSelectedProductId(prodId);
+    const config = getProductById(prodId);
+    setProductConfig(config);
+    setUploadedFiles({});
+    setFilePreviews({});
+    setCurrentStep(3);
   };
 
-  // --- Step 3 Handlers ---
+  // --- Step 3 File Handlers ---
   const handleDrag = (e, sourceKey) => {
     e.preventDefault();
     e.stopPropagation();
@@ -152,7 +151,7 @@ export default function ManualReconView() {
           ]
         }
       }));
-    }, 400);
+    }, 300);
   };
 
   const removeFile = (sourceKey) => {
@@ -192,7 +191,7 @@ export default function ManualReconView() {
       setProcessingStatus('completed');
       setTimeout(() => {
         setCurrentStep(5);
-      }, 1400);
+      }, 1200);
     } catch (error) {
       console.error(error);
       setProcessingStatus('error');
@@ -200,7 +199,7 @@ export default function ManualReconView() {
     }
   };
 
-  // --- Step 5 Handlers ---
+  // --- Step 5 Handler ---
   const handleReset = () => {
     setCurrentStep(1);
     setSelectedCategoryId('');
@@ -238,7 +237,7 @@ export default function ManualReconView() {
 
   // --- Render 5-Step Stepper Header ---
   const renderStepper = () => (
-    <div className="glass-card" style={{ padding: '20px 32px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div className="glass-card" style={{ padding: '18px 32px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       {wizardSteps.map((step, index) => {
         const isActive = step.id === currentStep;
         const isCompleted = step.id < currentStep;
@@ -247,18 +246,18 @@ export default function ManualReconView() {
           <div key={step.id} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 1 }}>
               <div style={{
-                width: '36px', height: '36px', borderRadius: '50%',
+                width: '34px', height: '34px', borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 backgroundColor: isActive ? 'var(--primary)' : (isCompleted ? 'var(--success)' : 'transparent'),
                 border: `2px solid ${isActive ? 'var(--primary)' : (isCompleted ? 'var(--success)' : 'var(--border)')}`,
                 color: (isActive || isCompleted) ? '#fff' : 'var(--text-secondary)',
-                fontWeight: '600',
+                fontWeight: '600', fontSize: '0.9rem',
                 transition: 'all 0.3s ease'
               }}>
-                {isCompleted ? <Check size={18} /> : step.id}
+                {isCompleted ? <Check size={16} /> : step.id}
               </div>
               <span style={{ 
-                marginTop: '8px', fontSize: '0.82rem', fontWeight: isActive ? '700' : '500',
+                marginTop: '6px', fontSize: '0.8rem', fontWeight: isActive ? '700' : '500',
                 color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                 textAlign: 'center'
               }}>
@@ -266,7 +265,7 @@ export default function ManualReconView() {
               </span>
             </div>
             {index < wizardSteps.length - 1 && (
-              <div style={{ flex: 1, height: '2px', backgroundColor: isCompleted ? 'var(--success)' : 'var(--border)', margin: '0 12px', marginTop: '-24px', transition: 'all 0.3s ease' }} />
+              <div style={{ flex: 1, height: '2px', backgroundColor: isCompleted ? 'var(--success)' : 'var(--border)', margin: '0 10px', marginTop: '-20px', transition: 'all 0.3s ease' }} />
             )}
           </div>
         );
@@ -274,49 +273,44 @@ export default function ManualReconView() {
     </div>
   );
 
-  // ─── STEP 1: Select Main Product Category ───
+  // ─── STEP 1: Select Category (Minimal Cards: Icon + Title only, Auto-Advance) ───
   const renderStep1 = () => (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div>
-        <h2 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.4rem' }}>
-          <Layers className="text-primary" size={26} /> Step 1: Select Product Category
+        <h2 style={{ marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.35rem' }}>
+          <Layers className="text-primary" size={24} /> Step 1: Select Product Category
         </h2>
-        <p style={{ color: 'var(--text-secondary)', margin: '0 0 24px 0', fontSize: '0.95rem' }}>
-          Choose the main financial product category to begin reconciliation.
+        <p style={{ color: 'var(--text-secondary)', margin: '0 0 20px 0', fontSize: '0.9rem' }}>
+          Click on any product category to select it.
         </p>
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
           {categories.map(cat => (
             <div 
               key={cat.id} 
               className="glass-card"
               onClick={() => handleSelectCategory(cat.id)}
               style={{
-                padding: '24px', cursor: 'pointer', position: 'relative', overflow: 'hidden',
+                padding: '20px 24px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '16px',
                 borderColor: selectedCategoryId === cat.id ? 'var(--primary)' : 'var(--border)',
-                backgroundColor: selectedCategoryId === cat.id ? 'rgba(17, 157, 176, 0.06)' : 'white',
-                transition: 'all 0.25s ease',
+                backgroundColor: selectedCategoryId === cat.id ? 'rgba(17, 157, 176, 0.08)' : 'white',
+                borderRadius: '12px', transition: 'all 0.2s ease',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-3px)';
-                e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.08)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 18px rgba(0,0,0,0.08)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'none';
                 e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.03)';
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                <div style={{ fontSize: '2.4rem', lineHeight: 1 }}>{cat.icon || '📦'}</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)', background: 'rgba(17,157,176,0.1)', padding: '3px 10px', borderRadius: '12px' }}>
-                    Select →
-                  </span>
-                </div>
+              <div style={{ fontSize: '2.2rem', lineHeight: 1 }}>{cat.icon || '📦'}</div>
+              <div style={{ flex: 1 }}>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)', fontWeight: '700' }}>{cat.name}</h3>
               </div>
-              <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem' }}>{cat.name}</h3>
-              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: '1.4' }}>{cat.desc}</p>
+              <ChevronRight size={18} style={{ color: 'var(--text-secondary)' }} />
             </div>
           ))}
         </div>
@@ -324,102 +318,124 @@ export default function ManualReconView() {
     </div>
   );
 
-  // ─── STEP 2: Sub-Product, Settlement Cycle & Business Date ───
+  // ─── STEP 2: Select Sub-Product (Minimal Cards: Title + Badge only, Auto-Advance) ───
   const renderStep2 = () => {
     const activeCategory = categories.find(c => c.id === selectedCategoryId);
 
     return (
-      <div className="animate-fade-in glass-card" style={{ padding: '32px' }}>
-        {/* Header Navigation */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
+      <div className="animate-fade-in glass-card" style={{ padding: '28px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '14px' }}>
+          <button 
+            className="btn btn-outline" 
+            onClick={() => setCurrentStep(1)}
+            style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <ArrowLeft size={16} /> Back to Categories
+          </button>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>{activeCategory?.icon}</span> {activeCategory?.name} — Step 2: Select Sub-Product
+            </h2>
+            <p style={{ margin: '2px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.86rem' }}>
+              Click on a sub-product box to select it.
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '16px' }}>
+          {availableProducts.map(prod => {
+            const statusStr = prod.reconStatus || 'Manual';
+            let badgeClass = 'badge-warning';
+            if (statusStr.includes('Automation') && !statusStr.includes('Manual')) badgeClass = 'badge-success';
+            else if (statusStr.includes('Both')) badgeClass = 'badge-primary';
+
+            return (
+              <div
+                key={prod.id}
+                className="glass-card"
+                onClick={() => handleSelectSubProduct(prod.id)}
+                style={{
+                  padding: '20px', cursor: 'pointer', position: 'relative',
+                  borderColor: selectedProductId === prod.id ? 'var(--primary)' : 'var(--border)',
+                  backgroundColor: selectedProductId === prod.id ? 'rgba(17, 157, 176, 0.08)' : 'white',
+                  borderRadius: '12px', transition: 'all 0.2s ease',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 18px rgba(0,0,0,0.08)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.03)';
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <span className={`badge ${badgeClass}`} style={{ fontSize: '0.72rem' }}>{statusStr}</span>
+                  <ChevronRight size={16} style={{ color: 'var(--text-secondary)' }} />
+                </div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-primary)' }}>{prod.name}</h3>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // ─── STEP 3: Business Date, Settlement Cycle & File Upload ───
+  const renderStep3 = () => {
+    if (!productConfig) return null;
+    const activeCategory = categories.find(c => c.id === selectedCategoryId);
+
+    return (
+      <div className="animate-fade-in glass-card" style={{ padding: '28px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button 
               className="btn btn-outline" 
-              onClick={() => setCurrentStep(1)}
+              onClick={() => setCurrentStep(2)}
               style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
             >
-              <ArrowLeft size={16} /> Back to Categories
+              <ArrowLeft size={16} /> Back to Sub-Products
             </button>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>{activeCategory?.icon}</span> {activeCategory?.name} — Select Sub-Product & Parameters
+              <h2 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>{activeCategory?.icon}</span> {productConfig.name} — Step 3: Date, Cycle & File Upload
               </h2>
-              <p style={{ margin: '2px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
-                Select a sub-product variant card, settlement cycle, and target business date.
+              <p style={{ margin: '2px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.86rem' }}>
+                Set reconciliation parameters and upload the required source files.
               </p>
             </div>
           </div>
 
           <button 
             className="btn btn-primary" 
-            onClick={handleProceedToUpload}
-            disabled={!selectedProductId || !businessDate}
-            style={{ padding: '10px 24px', fontWeight: '700', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+            onClick={handleStartRecon}
+            disabled={!canStartRecon()}
+            style={{ padding: '10px 24px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: '700' }}
           >
-            Proceed to File Upload <ChevronRight size={18} />
+            <Play size={18} /> Start Reconciliation Engine
           </button>
         </div>
 
-        {/* ─── 1. Sub-Products Card Grid (Box Format like Main Products) ─── */}
-        <div style={{ marginBottom: '32px' }}>
-          <label style={{ display: 'block', marginBottom: '12px', fontWeight: '700', fontSize: '1rem', color: 'var(--text-primary)' }}>
-            Select Sub-Product Variant ({availableProducts.length} Available)
-          </label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
-            {availableProducts.map(prod => {
-              const isSelected = selectedProductId === prod.id;
-              const statusStr = prod.reconStatus || 'Manual';
-              let badgeClass = 'badge-warning';
-              if (statusStr.includes('Automation') && !statusStr.includes('Manual')) badgeClass = 'badge-success';
-              else if (statusStr.includes('Both')) badgeClass = 'badge-primary';
-
-              return (
-                <div
-                  key={prod.id}
-                  className="glass-card"
-                  onClick={() => setSelectedProductId(prod.id)}
-                  style={{
-                    padding: '20px', cursor: 'pointer', position: 'relative',
-                    borderColor: isSelected ? 'var(--primary)' : 'var(--border)',
-                    backgroundColor: isSelected ? 'rgba(17, 157, 176, 0.08)' : 'white',
-                    transform: isSelected ? 'translateY(-2px)' : 'none',
-                    boxShadow: isSelected ? '0 6px 20px rgba(17,157,176,0.14)' : 'none',
-                    transition: 'all 0.2s ease',
-                    borderRadius: '12px'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-                    <span className={`badge ${badgeClass}`} style={{ fontSize: '0.75rem' }}>{statusStr}</span>
-                    {isSelected && (
-                      <div style={{ backgroundColor: 'var(--primary)', color: 'white', borderRadius: '50%', padding: '3px' }}>
-                        <Check size={14} />
-                      </div>
-                    )}
-                  </div>
-
-                  <h3 style={{ margin: '0 0 8px 0', fontSize: '1.08rem', color: 'var(--text-primary)' }}>{prod.name}</h3>
-                  <p style={{ margin: '0 0 12px 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                    📄 {prod.sources?.length || 0} Required Source Files
-                  </p>
-
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                    {prod.sources?.map((s, i) => (
-                      <span key={i} style={{ fontSize: '0.72rem', background: '#F1F5F9', color: '#475569', padding: '2px 6px', borderRadius: '4px' }}>
-                        {s.label}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ─── 2. Cycle & Business Date Selection Controls ─── */}
-        <div style={{ background: '#F8FAFC', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-          {/* Settlement Cycle Select */}
+        {/* Date & Cycle Controls Box */}
+        <div style={{ background: '#F8FAFC', padding: '20px 24px', borderRadius: '12px', border: '1px solid var(--border)', marginBottom: '24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
           <div>
-            <label style={{ marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <label style={{ marginBottom: '6px', fontWeight: '600', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Calendar size={15} color="var(--primary)" /> Business Date (T)
+            </label>
+            <input 
+              type="date" 
+              className="settings-input" 
+              value={businessDate}
+              onChange={(e) => setBusinessDate(e.target.value)}
+              style={{ width: '100%', fontSize: '0.95rem', background: 'white' }}
+            />
+          </div>
+
+          <div>
+            <label style={{ marginBottom: '6px', fontWeight: '600', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <RotateCcw size={15} color="var(--primary)" /> Settlement Cycle
             </label>
             <div style={{ position: 'relative' }}>
@@ -438,60 +454,13 @@ export default function ManualReconView() {
               <ChevronDown size={18} style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
             </div>
           </div>
-
-          {/* Business Date Picker */}
-          <div>
-            <label style={{ marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Calendar size={15} color="var(--primary)" /> Business Date (T)
-            </label>
-            <input 
-              type="date" 
-              className="settings-input" 
-              value={businessDate}
-              onChange={(e) => setBusinessDate(e.target.value)}
-              style={{ width: '100%', fontSize: '0.95rem', background: 'white' }}
-            />
-          </div>
         </div>
 
-      </div>
-    );
-  };
-
-  // ─── STEP 3: Upload Source Files ───
-  const renderStep3 = () => {
-    if (!productConfig) return null;
-
-    return (
-      <div className="animate-fade-in glass-card" style={{ padding: '32px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button 
-              className="btn btn-outline" 
-              onClick={() => setCurrentStep(2)}
-              style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-            >
-              <ArrowLeft size={16} /> Back to Setup
-            </button>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.3rem' }}>Step 3: Upload Source Files for {productConfig.name}</h2>
-              <p style={{ margin: '2px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
-                Date: <strong>{businessDate}</strong> • Cycle: <strong>{settlementCycle}</strong>
-              </p>
-            </div>
-          </div>
-
-          <button 
-            className="btn btn-primary" 
-            onClick={handleStartRecon}
-            disabled={!canStartRecon()}
-            style={{ padding: '10px 24px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: '700' }}
-          >
-            <Play size={18} /> Start Reconciliation Engine
-          </button>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: productConfig.sources.length > 2 ? 'repeat(2, 1fr)' : '1fr', gap: '24px' }}>
+        {/* Upload Drop Zones Grid */}
+        <label style={{ display: 'block', marginBottom: '12px', fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+          Required Source Files ({productConfig.sources?.length || 0})
+        </label>
+        <div style={{ display: 'grid', gridTemplateColumns: productConfig.sources.length > 2 ? 'repeat(2, 1fr)' : '1fr', gap: '20px' }}>
           {productConfig.sources.map(src => {
             const uploadedFile = uploadedFiles[src.key];
             const isDrag = dragActive === src.key;
@@ -502,7 +471,7 @@ export default function ManualReconView() {
                 key={src.key} 
                 style={{ 
                   border: `2px dashed ${isDrag ? 'var(--primary)' : (uploadedFile ? 'var(--success)' : 'var(--border)')}`,
-                  borderRadius: '12px', padding: '24px', textAlign: 'center',
+                  borderRadius: '12px', padding: '20px', textAlign: 'center',
                   backgroundColor: isDrag ? 'rgba(17,157,176,0.05)' : (uploadedFile ? 'rgba(16,185,129,0.03)' : 'white'),
                   transition: 'all 0.2s ease'
                 }}
@@ -511,8 +480,8 @@ export default function ManualReconView() {
                 onDragLeave={(e) => handleDrag(e, src.key)}
                 onDrop={(e) => handleDrop(e, src.key)}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <span style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--text-primary)' }}>{src.label}</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{src.label}</span>
                   {src.required ? (
                     <span className="badge badge-danger">Required</span>
                   ) : (
@@ -521,46 +490,46 @@ export default function ManualReconView() {
                 </div>
 
                 {!uploadedFile ? (
-                  <div style={{ padding: '20px 0' }}>
-                    <Upload size={36} style={{ color: 'var(--text-secondary)', marginBottom: '12px' }} />
-                    <p style={{ margin: '0 0 8px 0', fontSize: '0.95rem', fontWeight: '500' }}>
+                  <div style={{ padding: '16px 0' }}>
+                    <Upload size={32} style={{ color: 'var(--text-secondary)', marginBottom: '8px' }} />
+                    <p style={{ margin: '0 0 6px 0', fontSize: '0.9rem', fontWeight: '500' }}>
                       Drag and drop file here, or{' '}
                       <label style={{ color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline' }}>
                         browse
                         <input type="file" accept=".xlsx, .xls, .csv" onChange={(e) => handleFileInput(e, src.key)} style={{ display: 'none' }} />
                       </label>
                     </p>
-                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Supports .xlsx, .xls, .csv</p>
+                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Supports .xlsx, .xls, .csv</p>
                   </div>
                 ) : (
                   <div className="animate-fade-in" style={{ textAlign: 'left' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <FileText size={24} style={{ color: 'var(--success)' }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <FileText size={22} style={{ color: 'var(--success)' }} />
                         <div>
-                          <p style={{ margin: 0, fontWeight: '600', fontSize: '0.9rem' }}>{uploadedFile.name}</p>
+                          <p style={{ margin: 0, fontWeight: '600', fontSize: '0.88rem' }}>{uploadedFile.name}</p>
                           <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{(uploadedFile.size / 1024).toFixed(1)} KB</p>
                         </div>
                       </div>
                       <button onClick={() => removeFile(src.key)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>
-                        <X size={18} />
+                        <X size={16} />
                       </button>
                     </div>
 
                     {preview && (
-                      <div style={{ marginTop: '16px' }}>
-                        <p style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>File Structure Preview</p>
+                      <div style={{ marginTop: '12px' }}>
+                        <p style={{ fontSize: '0.78rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '4px' }}>Structure Preview</p>
                         <div style={{ overflowX: 'auto', background: '#F8FAFC', borderRadius: '6px', border: '1px solid var(--border)' }}>
                           <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
                             <thead>
                               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                                {preview.cols.map(c => <th key={c} style={{ padding: '6px 10px', textAlign: 'left' }}>{c}</th>)}
+                                {preview.cols.map(c => <th key={c} style={{ padding: '5px 8px', textAlign: 'left' }}>{c}</th>)}
                               </tr>
                             </thead>
                             <tbody>
                               {preview.rows.map((r, i) => (
                                 <tr key={i} style={{ borderBottom: i < preview.rows.length - 1 ? '1px solid #E2E8F0' : 'none' }}>
-                                  {r.map((val, j) => <td key={j} style={{ padding: '6px 10px' }}>{val}</td>)}
+                                  {r.map((val, j) => <td key={j} style={{ padding: '5px 8px' }}>{val}</td>)}
                                 </tr>
                               ))}
                             </tbody>
@@ -588,7 +557,6 @@ export default function ManualReconView() {
         </p>
       </div>
 
-      {/* Terminal Log Output */}
       <div style={{ backgroundColor: '#1b2a3e', borderRadius: '12px', padding: '24px', fontFamily: 'monospace', color: '#e2e8f0', height: '350px', overflowY: 'auto' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
           <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
@@ -668,7 +636,7 @@ export default function ManualReconView() {
           </div>
         </div>
 
-        {/* Data Table with Tab Toolbar */}
+        {/* Data Table */}
         <div className="glass-card" style={{ padding: '0', overflow: 'hidden' }}>
           <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <div style={{ display: 'flex', gap: '8px' }}>
