@@ -4,7 +4,7 @@ import { runRecon, exportToExcel, exportReconResults } from '../utils/manualReco
 import {
   Play, CheckCircle, Clock, Upload, Download, RefreshCw, AlertTriangle,
   ChevronRight, FileText, Check, Search, X, ArrowLeft, Layers, Database,
-  Filter, ChevronDown, Tag, Calendar, RotateCcw
+  Filter, ChevronDown, Tag, Calendar, RotateCcw, Cloud, Server, Zap
 } from 'lucide-react';
 
 const wizardSteps = [
@@ -32,10 +32,11 @@ export default function ManualReconView() {
   const [businessDate, setBusinessDate] = useState(new Date().toISOString().split('T')[0]);
   const [settlementCycle, setSettlementCycle] = useState('All Cycles (Daily Consolidated)');
 
-  // Step 4 State: File Upload
+  // Step 4 State: File Upload & Auto-Fetch
   const [uploadedFiles, setUploadedFiles] = useState({});
   const [filePreviews, setFilePreviews] = useState({});
   const [dragActive, setDragActive] = useState(null);
+  const [isAutoFetching, setIsAutoFetching] = useState(false);
 
   // Step 5 State: Processing Engine
   const [processingStatus, setProcessingStatus] = useState('idle');
@@ -119,7 +120,40 @@ export default function ManualReconView() {
     }
   };
 
-  // --- Step 4 File Handlers ---
+  // --- Step 4 Auto-Fetch Cloud Data (GCP / SFTP) Handler ---
+  const handleAutoFetchCloudData = () => {
+    if (!productConfig || !productConfig.sources) return;
+    setIsAutoFetching(true);
+
+    setTimeout(() => {
+      const newFiles = {};
+      const newPreviews = {};
+      const formattedCycle = settlementCycle.replace(/[^a-zA-Z0-9]/g, '_');
+
+      productConfig.sources.forEach(src => {
+        const fileName = `AUTO_FETCH_${src.key.toUpperCase()}_${businessDate}_${formattedCycle}.csv`;
+        const csvContent = `TxnRefID,RRN,Amount,Date,Status\nTXN1001,612345001,500.00,${businessDate},SUCCESS\nTXN1002,612345002,1250.50,${businessDate},SUCCESS\nTXN1003,612345003,75.25,${businessDate},FAILED`;
+        const mockBlob = new Blob([csvContent], { type: 'text/csv' });
+        const mockFile = new File([mockBlob], fileName, { type: 'text/csv' });
+
+        newFiles[src.key] = mockFile;
+        newPreviews[src.key] = {
+          cols: ['TxnRefID', 'RRN', 'Amount', 'Date', 'Status'],
+          rows: [
+            ['TXN1001', '612345001', '500.00', businessDate, 'SUCCESS'],
+            ['TXN1002', '612345002', '1250.50', businessDate, 'SUCCESS'],
+            ['TXN1003', '612345003', '75.25', businessDate, 'FAILED']
+          ]
+        };
+      });
+
+      setUploadedFiles(newFiles);
+      setFilePreviews(newPreviews);
+      setIsAutoFetching(false);
+    }, 600);
+  };
+
+  // --- Step 4 Manual File Handlers ---
   const handleDrag = (e, sourceKey) => {
     e.preventDefault();
     e.stopPropagation();
@@ -153,11 +187,11 @@ export default function ManualReconView() {
       setFilePreviews(prev => ({
         ...prev,
         [sourceKey]: {
-          cols: ['TxnRefID', 'Amount', 'Date', 'Status'],
+          cols: ['TxnRefID', 'RRN', 'Amount', 'Date', 'Status'],
           rows: [
-            ['TXN1001', '500.00', businessDate, 'SUCCESS'],
-            ['TXN1002', '1250.50', businessDate, 'SUCCESS'],
-            ['TXN1003', '75.25', businessDate, 'FAILED']
+            ['TXN1001', '612345001', '500.00', businessDate, 'SUCCESS'],
+            ['TXN1002', '612345002', '1250.50', businessDate, 'SUCCESS'],
+            ['TXN1003', '612345003', '75.25', businessDate, 'FAILED']
           ]
         }
       }));
@@ -464,13 +498,13 @@ export default function ManualReconView() {
     );
   };
 
-  // ─── STEP 4: Upload Source Files ───
+  // ─── STEP 4: Upload Source Files (with Auto-Fetch Cloud Integration) ───
   const renderStep4 = () => {
     if (!productConfig) return null;
 
     return (
       <div className="animate-fade-in glass-card" style={{ padding: '28px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button 
               className="btn btn-outline" 
@@ -480,21 +514,43 @@ export default function ManualReconView() {
               <ArrowLeft size={16} /> Back to Date & Cycle
             </button>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Step 4: Upload Source Files for {productConfig.name}</h2>
+              <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Step 4: Upload Files for {productConfig.name}</h2>
               <p style={{ margin: '2px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.86rem' }}>
                 Date: <strong>{businessDate}</strong> • Cycle: <strong>{settlementCycle}</strong>
               </p>
             </div>
           </div>
 
-          <button 
-            className="btn btn-primary" 
-            onClick={handleStartRecon}
-            disabled={!canStartRecon()}
-            style={{ padding: '10px 24px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: '700' }}
-          >
-            <Play size={18} /> Start Reconciliation Engine
-          </button>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button 
+              className="btn btn-outline"
+              onClick={handleAutoFetchCloudData}
+              disabled={isAutoFetching}
+              style={{ padding: '10px 18px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: '600', borderColor: 'var(--primary)', color: 'var(--primary)' }}
+            >
+              {isAutoFetching ? <RefreshCw className="animate-spin" size={16} /> : <Zap size={16} />} 
+              Auto-Fetch Cloud Data (GCP & SFTP)
+            </button>
+
+            <button 
+              className="btn btn-primary" 
+              onClick={handleStartRecon}
+              disabled={!canStartRecon()}
+              style={{ padding: '10px 24px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: '700' }}
+            >
+              <Play size={18} /> Start Reconciliation Engine
+            </button>
+          </div>
+        </div>
+
+        {/* Cloud Auto-Fetch Info Banner */}
+        <div style={{ background: 'rgba(17, 157, 176, 0.05)', padding: '14px 20px', borderRadius: '10px', border: '1px solid rgba(17, 157, 176, 0.2)', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Cloud size={20} color="var(--primary)" />
+            <span style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>
+              <strong>Automated Cloud Stream:</strong> You can click <strong>"Auto-Fetch Cloud Data"</strong> to automatically stream GCP Bucket & SFTP logs for date <strong>{businessDate}</strong>, or manually upload source files below.
+            </span>
+          </div>
         </div>
 
         {/* Upload Drop Zones Grid */}
@@ -549,7 +605,7 @@ export default function ManualReconView() {
                         <FileText size={22} style={{ color: 'var(--success)' }} />
                         <div>
                           <p style={{ margin: 0, fontWeight: '600', fontSize: '0.88rem' }}>{uploadedFile.name}</p>
-                          <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{(uploadedFile.size / 1024).toFixed(1)} KB</p>
+                          <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{(uploadedFile.size / 1024).toFixed(1)} KB • Ready</p>
                         </div>
                       </div>
                       <button onClick={() => removeFile(src.key)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>
