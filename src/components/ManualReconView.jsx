@@ -4,7 +4,7 @@ import { runRecon, exportToExcel, exportReconResults } from '../utils/manualReco
 import {
   Play, CheckCircle, Clock, Upload, Download, RefreshCw, AlertTriangle,
   ChevronRight, FileText, Check, Search, X, ArrowLeft, Layers, Database,
-  Filter, ChevronDown, Tag, Calendar, RotateCcw, Cloud, Server, Zap
+  Filter, ChevronDown, Tag, Calendar, RotateCcw, Cloud, Server, Zap, HardDrive
 } from 'lucide-react';
 
 const wizardSteps = [
@@ -37,6 +37,7 @@ export default function ManualReconView() {
   const [filePreviews, setFilePreviews] = useState({});
   const [dragActive, setDragActive] = useState(null);
   const [isAutoFetching, setIsAutoFetching] = useState(false);
+  const [autoFetchedKeys, setAutoFetchedKeys] = useState([]);
 
   // Step 5 State: Processing Engine
   const [processingStatus, setProcessingStatus] = useState('idle');
@@ -61,6 +62,25 @@ export default function ManualReconView() {
     }
   }, []);
 
+  // Helper: check if a source file is an internal system log that can be auto-fetched
+  const isAutoFetchableSource = (srcKey, srcLabel) => {
+    const label = (srcLabel || '').toLowerCase();
+    const key = (srcKey || '').toLowerCase();
+    return (
+      label.includes('middleware') ||
+      label.includes('switch') ||
+      label.includes('wallet') ||
+      label.includes('internal') ||
+      label.includes('cou system') ||
+      label.includes('mw') ||
+      key.includes('middleware') ||
+      key.includes('switch') ||
+      key.includes('wallet') ||
+      key.includes('internal') ||
+      key.includes('mw')
+    );
+  };
+
   // Update available sub-products whenever selectedCategoryId changes
   useEffect(() => {
     if (selectedCategoryId) {
@@ -84,6 +104,7 @@ export default function ManualReconView() {
       }
       setUploadedFiles({});
       setFilePreviews({});
+      setAutoFetchedKeys([]);
     } else {
       setProductConfig(null);
     }
@@ -110,6 +131,7 @@ export default function ManualReconView() {
     setProductConfig(config);
     setUploadedFiles({});
     setFilePreviews({});
+    setAutoFetchedKeys([]);
     setCurrentStep(3);
   };
 
@@ -120,35 +142,68 @@ export default function ManualReconView() {
     }
   };
 
-  // --- Step 4 Auto-Fetch Cloud Data (GCP / SFTP) Handler ---
-  const handleAutoFetchCloudData = () => {
-    if (!productConfig || !productConfig.sources) return;
+  // --- Step 4 Single File Cloud Auto-Fetch ---
+  const handleSingleSourceAutoFetch = (srcKey, srcLabel) => {
     setIsAutoFetching(true);
+    const formattedCycle = settlementCycle.replace(/[^a-zA-Z0-9]/g, '_');
 
     setTimeout(() => {
-      const newFiles = {};
-      const newPreviews = {};
-      const formattedCycle = settlementCycle.replace(/[^a-zA-Z0-9]/g, '_');
+      const fileName = `AUTO_${srcKey.toUpperCase()}_${businessDate}_${formattedCycle}.csv`;
+      const csvContent = `TxnRefID,RRN,Amount,Date,Status\nTXN1001,612345001,500.00,${businessDate},SUCCESS\nTXN1002,612345002,1250.50,${businessDate},SUCCESS\nTXN1003,612345003,75.25,${businessDate},FAILED`;
+      const mockBlob = new Blob([csvContent], { type: 'text/csv' });
+      const mockFile = new File([mockBlob], fileName, { type: 'text/csv' });
 
-      productConfig.sources.forEach(src => {
-        const fileName = `AUTO_FETCH_${src.key.toUpperCase()}_${businessDate}_${formattedCycle}.csv`;
-        const csvContent = `TxnRefID,RRN,Amount,Date,Status\nTXN1001,612345001,500.00,${businessDate},SUCCESS\nTXN1002,612345002,1250.50,${businessDate},SUCCESS\nTXN1003,612345003,75.25,${businessDate},FAILED`;
-        const mockBlob = new Blob([csvContent], { type: 'text/csv' });
-        const mockFile = new File([mockBlob], fileName, { type: 'text/csv' });
-
-        newFiles[src.key] = mockFile;
-        newPreviews[src.key] = {
+      setUploadedFiles(prev => ({ ...prev, [srcKey]: mockFile }));
+      setFilePreviews(prev => ({
+        ...prev,
+        [srcKey]: {
           cols: ['TxnRefID', 'RRN', 'Amount', 'Date', 'Status'],
           rows: [
             ['TXN1001', '612345001', '500.00', businessDate, 'SUCCESS'],
             ['TXN1002', '612345002', '1250.50', businessDate, 'SUCCESS'],
             ['TXN1003', '612345003', '75.25', businessDate, 'FAILED']
           ]
-        };
+        }
+      }));
+      setAutoFetchedKeys(prev => Array.from(new Set([...prev, srcKey])));
+      setIsAutoFetching(false);
+    }, 400);
+  };
+
+  // --- Step 4 Auto-Fetch ALL Internal Cloud Data ---
+  const handleAutoFetchAllCloudData = () => {
+    if (!productConfig || !productConfig.sources) return;
+    setIsAutoFetching(true);
+
+    setTimeout(() => {
+      const newFiles = { ...uploadedFiles };
+      const newPreviews = { ...filePreviews };
+      const fetchedKeys = [...autoFetchedKeys];
+      const formattedCycle = settlementCycle.replace(/[^a-zA-Z0-9]/g, '_');
+
+      productConfig.sources.forEach(src => {
+        if (isAutoFetchableSource(src.key, src.label)) {
+          const fileName = `AUTO_${src.key.toUpperCase()}_${businessDate}_${formattedCycle}.csv`;
+          const csvContent = `TxnRefID,RRN,Amount,Date,Status\nTXN1001,612345001,500.00,${businessDate},SUCCESS\nTXN1002,612345002,1250.50,${businessDate},SUCCESS\nTXN1003,612345003,75.25,${businessDate},FAILED`;
+          const mockBlob = new Blob([csvContent], { type: 'text/csv' });
+          const mockFile = new File([mockBlob], fileName, { type: 'text/csv' });
+
+          newFiles[src.key] = mockFile;
+          newPreviews[src.key] = {
+            cols: ['TxnRefID', 'RRN', 'Amount', 'Date', 'Status'],
+            rows: [
+              ['TXN1001', '612345001', '500.00', businessDate, 'SUCCESS'],
+              ['TXN1002', '612345002', '1250.50', businessDate, 'SUCCESS'],
+              ['TXN1003', '612345003', '75.25', businessDate, 'FAILED']
+            ]
+          };
+          fetchedKeys.push(src.key);
+        }
       });
 
       setUploadedFiles(newFiles);
       setFilePreviews(newPreviews);
+      setAutoFetchedKeys(Array.from(new Set(fetchedKeys)));
       setIsAutoFetching(false);
     }, 600);
   };
@@ -181,6 +236,7 @@ export default function ManualReconView() {
 
   const handleFile = (file, sourceKey) => {
     setUploadedFiles(prev => ({ ...prev, [sourceKey]: file }));
+    setAutoFetchedKeys(prev => prev.filter(k => k !== sourceKey));
     
     // Create preview simulation
     setTimeout(() => {
@@ -209,6 +265,7 @@ export default function ManualReconView() {
       delete newPreviews[sourceKey];
       return newPreviews;
     });
+    setAutoFetchedKeys(prev => prev.filter(k => k !== sourceKey));
   };
 
   const canStartRecon = () => {
@@ -251,6 +308,7 @@ export default function ManualReconView() {
     setProductConfig(null);
     setUploadedFiles({});
     setFilePreviews({});
+    setAutoFetchedKeys([]);
     setReconResults(null);
     setProcessingLogs([]);
     setProcessingStatus('idle');
@@ -498,9 +556,10 @@ export default function ManualReconView() {
     );
   };
 
-  // ─── STEP 4: Upload Source Files (with Auto-Fetch Cloud Integration) ───
+  // ─── STEP 4: Upload Source Files (Categorized Auto-Fetch vs User Upload) ───
   const renderStep4 = () => {
     if (!productConfig) return null;
+    const hasAutoFetchableSources = productConfig.sources.some(s => isAutoFetchableSource(s.key, s.label));
 
     return (
       <div className="animate-fade-in glass-card" style={{ padding: '28px' }}>
@@ -514,7 +573,7 @@ export default function ManualReconView() {
               <ArrowLeft size={16} /> Back to Date & Cycle
             </button>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Step 4: Upload Files for {productConfig.name}</h2>
+              <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Step 4: Source File Collection for {productConfig.name}</h2>
               <p style={{ margin: '2px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.86rem' }}>
                 Date: <strong>{businessDate}</strong> • Cycle: <strong>{settlementCycle}</strong>
               </p>
@@ -522,15 +581,17 @@ export default function ManualReconView() {
           </div>
 
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button 
-              className="btn btn-outline"
-              onClick={handleAutoFetchCloudData}
-              disabled={isAutoFetching}
-              style={{ padding: '10px 18px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: '600', borderColor: 'var(--primary)', color: 'var(--primary)' }}
-            >
-              {isAutoFetching ? <RefreshCw className="animate-spin" size={16} /> : <Zap size={16} />} 
-              Auto-Fetch Cloud Data (GCP & SFTP)
-            </button>
+            {hasAutoFetchableSources && (
+              <button 
+                className="btn btn-outline"
+                onClick={handleAutoFetchAllCloudData}
+                disabled={isAutoFetching}
+                style={{ padding: '10px 18px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: '600', borderColor: 'var(--primary)', color: 'var(--primary)' }}
+              >
+                {isAutoFetching ? <RefreshCw className="animate-spin" size={16} /> : <Zap size={16} />} 
+                ⚡ Auto-Fetch Internal Cloud Data (GCP & SFTP)
+              </button>
+            )}
 
             <button 
               className="btn btn-primary" 
@@ -543,17 +604,7 @@ export default function ManualReconView() {
           </div>
         </div>
 
-        {/* Cloud Auto-Fetch Info Banner */}
-        <div style={{ background: 'rgba(17, 157, 176, 0.05)', padding: '14px 20px', borderRadius: '10px', border: '1px solid rgba(17, 157, 176, 0.2)', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Cloud size={20} color="var(--primary)" />
-            <span style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>
-              <strong>Automated Cloud Stream:</strong> You can click <strong>"Auto-Fetch Cloud Data"</strong> to automatically stream GCP Bucket & SFTP logs for date <strong>{businessDate}</strong>, or manually upload source files below.
-            </span>
-          </div>
-        </div>
-
-        {/* Upload Drop Zones Grid */}
+        {/* Source File Collection Grid */}
         <label style={{ display: 'block', marginBottom: '14px', fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
           Required Source Files ({productConfig.sources?.length || 0})
         </label>
@@ -562,6 +613,8 @@ export default function ManualReconView() {
             const uploadedFile = uploadedFiles[src.key];
             const isDrag = dragActive === src.key;
             const preview = filePreviews[src.key];
+            const autoFetchable = isAutoFetchableSource(src.key, src.label);
+            const isAutoFetched = autoFetchedKeys.includes(src.key);
 
             return (
               <div 
@@ -578,7 +631,19 @@ export default function ManualReconView() {
                 onDrop={(e) => handleDrop(e, src.key)}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{src.label}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)' }}>{src.label}</span>
+                    {autoFetchable ? (
+                      <span style={{ fontSize: '0.7rem', color: '#0284c7', background: 'rgba(2, 132, 199, 0.1)', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>
+                        ⚡ Auto-Fetch (GCP / SFTP)
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.7rem', color: '#d97706', background: 'rgba(217, 119, 6, 0.1)', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>
+                        📂 User Upload (Bank/NPCI File)
+                      </span>
+                    )}
+                  </div>
+
                   {src.required ? (
                     <span className="badge badge-danger">Required</span>
                   ) : (
@@ -588,24 +653,44 @@ export default function ManualReconView() {
 
                 {!uploadedFile ? (
                   <div style={{ padding: '16px 0' }}>
-                    <Upload size={32} style={{ color: 'var(--text-secondary)', marginBottom: '8px' }} />
-                    <p style={{ margin: '0 0 6px 0', fontSize: '0.9rem', fontWeight: '500' }}>
-                      Drag and drop file here, or{' '}
-                      <label style={{ color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline' }}>
-                        browse
-                        <input type="file" accept=".xlsx, .xls, .csv" onChange={(e) => handleFileInput(e, src.key)} style={{ display: 'none' }} />
-                      </label>
-                    </p>
-                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Supports .xlsx, .xls, .csv</p>
+                    {autoFetchable ? (
+                      <div>
+                        <Cloud size={32} style={{ color: 'var(--primary)', marginBottom: '8px' }} />
+                        <p style={{ margin: '0 0 10px 0', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
+                          Internal log extract available on Cloud (GCP / SFTP)
+                        </p>
+                        <button 
+                          className="btn btn-outline"
+                          onClick={() => handleSingleSourceAutoFetch(src.key, src.label)}
+                          style={{ padding: '6px 16px', fontSize: '0.85rem', color: 'var(--primary)', borderColor: 'var(--primary)', fontWeight: '600' }}
+                        >
+                          ⚡ Auto-Fetch from Cloud
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <Upload size={32} style={{ color: 'var(--text-secondary)', marginBottom: '8px' }} />
+                        <p style={{ margin: '0 0 6px 0', fontSize: '0.9rem', fontWeight: '500' }}>
+                          Drag & drop file here, or{' '}
+                          <label style={{ color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline' }}>
+                            browse
+                            <input type="file" accept=".xlsx, .xls, .csv" onChange={(e) => handleFileInput(e, src.key)} style={{ display: 'none' }} />
+                          </label>
+                        </p>
+                        <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Supports .xlsx, .xls, .csv</p>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="animate-fade-in" style={{ textAlign: 'left' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'white', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <FileText size={22} style={{ color: 'var(--success)' }} />
+                        <FileText size={22} style={{ color: isAutoFetched ? 'var(--primary)' : 'var(--success)' }} />
                         <div>
                           <p style={{ margin: 0, fontWeight: '600', fontSize: '0.88rem' }}>{uploadedFile.name}</p>
-                          <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{(uploadedFile.size / 1024).toFixed(1)} KB • Ready</p>
+                          <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            {(uploadedFile.size / 1024).toFixed(1)} KB • {isAutoFetched ? '⚡ Auto-Fetched from Cloud' : '📂 User Uploaded'}
+                          </p>
                         </div>
                       </div>
                       <button onClick={() => removeFile(src.key)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>
