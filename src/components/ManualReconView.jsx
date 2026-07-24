@@ -8,11 +8,12 @@ import {
 } from 'lucide-react';
 
 const wizardSteps = [
-  { id: 1, label: '1. Select Category' },
-  { id: 2, label: '2. Select Sub-Product' },
-  { id: 3, label: '3. Date, Cycle & Upload' },
-  { id: 4, label: '4. Processing' },
-  { id: 5, label: '5. Results' }
+  { id: 1, label: '1. Category' },
+  { id: 2, label: '2. Sub-Product' },
+  { id: 3, label: '3. Date & Cycle' },
+  { id: 4, label: '4. File Upload' },
+  { id: 5, label: '5. Processing' },
+  { id: 6, label: '6. Results' }
 ];
 
 export default function ManualReconView() {
@@ -27,20 +28,22 @@ export default function ManualReconView() {
   const [selectedProductId, setSelectedProductId] = useState('');
   const [productConfig, setProductConfig] = useState(null);
 
-  // Step 3 State: Date, Cycle & File Upload
-  const [settlementCycle, setSettlementCycle] = useState('All Cycles (Daily Consolidated)');
+  // Step 3 State: Date & Cycle Selection
   const [businessDate, setBusinessDate] = useState(new Date().toISOString().split('T')[0]);
+  const [settlementCycle, setSettlementCycle] = useState('All Cycles (Daily Consolidated)');
+
+  // Step 4 State: File Upload
   const [uploadedFiles, setUploadedFiles] = useState({});
   const [filePreviews, setFilePreviews] = useState({});
   const [dragActive, setDragActive] = useState(null);
 
-  // Step 4 State: Processing
+  // Step 5 State: Processing Engine
   const [processingStatus, setProcessingStatus] = useState('idle');
   const [processingLogs, setProcessingLogs] = useState([]);
   const [currentProcStepIndex, setCurrentProcStepIndex] = useState(-1);
   const logsEndRef = useRef(null);
 
-  // Step 5 State: Results
+  // Step 6 State: Results
   const [reconResults, setReconResults] = useState(null);
   const [activeTab, setActiveTab] = useState('mismatched');
   const [searchQuery, setSearchQuery] = useState('');
@@ -109,7 +112,14 @@ export default function ManualReconView() {
     setCurrentStep(3);
   };
 
-  // --- Step 3 File Handlers ---
+  // --- Step 3 Handler: Proceed to Step 4 File Upload ---
+  const handleProceedToUpload = () => {
+    if (businessDate && settlementCycle) {
+      setCurrentStep(4);
+    }
+  };
+
+  // --- Step 4 File Handlers ---
   const handleDrag = (e, sourceKey) => {
     e.preventDefault();
     e.stopPropagation();
@@ -176,7 +186,7 @@ export default function ManualReconView() {
   };
 
   const handleStartRecon = async () => {
-    setCurrentStep(4);
+    setCurrentStep(5);
     setProcessingStatus('processing');
     setProcessingLogs([]);
     setCurrentProcStepIndex(0);
@@ -190,7 +200,7 @@ export default function ManualReconView() {
       setReconResults(results);
       setProcessingStatus('completed');
       setTimeout(() => {
-        setCurrentStep(5);
+        setCurrentStep(6);
       }, 1200);
     } catch (error) {
       console.error(error);
@@ -199,7 +209,7 @@ export default function ManualReconView() {
     }
   };
 
-  // --- Step 5 Handler ---
+  // --- Step 6 Reset Handler ---
   const handleReset = () => {
     setCurrentStep(1);
     setSelectedCategoryId('');
@@ -235,9 +245,9 @@ export default function ManualReconView() {
   const paginatedData = filteredData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
   const dataColumns = filteredData.length > 0 ? Object.keys(filteredData[0]) : [];
 
-  // --- Render 5-Step Stepper Header ---
+  // --- Render Stepper Header ---
   const renderStepper = () => (
-    <div className="glass-card" style={{ padding: '18px 32px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div className="glass-card" style={{ padding: '18px 28px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       {wizardSteps.map((step, index) => {
         const isActive = step.id === currentStep;
         const isCompleted = step.id < currentStep;
@@ -251,13 +261,13 @@ export default function ManualReconView() {
                 backgroundColor: isActive ? 'var(--primary)' : (isCompleted ? 'var(--success)' : 'transparent'),
                 border: `2px solid ${isActive ? 'var(--primary)' : (isCompleted ? 'var(--success)' : 'var(--border)')}`,
                 color: (isActive || isCompleted) ? '#fff' : 'var(--text-secondary)',
-                fontWeight: '600', fontSize: '0.9rem',
+                fontWeight: '600', fontSize: '0.85rem',
                 transition: 'all 0.3s ease'
               }}>
                 {isCompleted ? <Check size={16} /> : step.id}
               </div>
               <span style={{ 
-                marginTop: '6px', fontSize: '0.8rem', fontWeight: isActive ? '700' : '500',
+                marginTop: '6px', fontSize: '0.78rem', fontWeight: isActive ? '700' : '500',
                 color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                 textAlign: 'center'
               }}>
@@ -265,7 +275,7 @@ export default function ManualReconView() {
               </span>
             </div>
             {index < wizardSteps.length - 1 && (
-              <div style={{ flex: 1, height: '2px', backgroundColor: isCompleted ? 'var(--success)' : 'var(--border)', margin: '0 10px', marginTop: '-20px', transition: 'all 0.3s ease' }} />
+              <div style={{ flex: 1, height: '2px', backgroundColor: isCompleted ? 'var(--success)' : 'var(--border)', margin: '0 8px', marginTop: '-20px', transition: 'all 0.3s ease' }} />
             )}
           </div>
         );
@@ -273,15 +283,15 @@ export default function ManualReconView() {
     </div>
   );
 
-  // ─── STEP 1: Select Category (Minimal Cards: Icon + Title only, Auto-Advance) ───
+  // ─── STEP 1: Select Main Product Category ───
   const renderStep1 = () => (
     <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div>
         <h2 style={{ marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.35rem' }}>
-          <Layers className="text-primary" size={24} /> Step 1: Select Product Category
+          <Layers className="text-primary" size={24} /> Step 1: Select Category
         </h2>
         <p style={{ color: 'var(--text-secondary)', margin: '0 0 20px 0', fontSize: '0.9rem' }}>
-          Click on any product category to select it.
+          Click on a product category to proceed.
         </p>
         
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '16px' }}>
@@ -318,7 +328,7 @@ export default function ManualReconView() {
     </div>
   );
 
-  // ─── STEP 2: Select Sub-Product (Minimal Cards: Title + Badge only, Auto-Advance) ───
+  // ─── STEP 2: Select Sub-Product ───
   const renderStep2 = () => {
     const activeCategory = categories.find(c => c.id === selectedCategoryId);
 
@@ -337,7 +347,7 @@ export default function ManualReconView() {
               <span>{activeCategory?.icon}</span> {activeCategory?.name} — Step 2: Select Sub-Product
             </h2>
             <p style={{ margin: '2px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.86rem' }}>
-              Click on a sub-product box to select it.
+              Click on a sub-product box to proceed.
             </p>
           </div>
         </div>
@@ -373,14 +383,14 @@ export default function ManualReconView() {
     );
   };
 
-  // ─── STEP 3: Business Date, Settlement Cycle & File Upload ───
+  // ─── STEP 3: Select Date & Settlement Cycle ───
   const renderStep3 = () => {
     if (!productConfig) return null;
     const activeCategory = categories.find(c => c.id === selectedCategoryId);
 
     return (
       <div className="animate-fade-in glass-card" style={{ padding: '28px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button 
               className="btn btn-outline" 
@@ -391,10 +401,88 @@ export default function ManualReconView() {
             </button>
             <div>
               <h2 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>{activeCategory?.icon}</span> {productConfig.name} — Step 3: Date, Cycle & File Upload
+                <span>{activeCategory?.icon}</span> {productConfig.name} — Step 3: Select Date & Cycle
               </h2>
               <p style={{ margin: '2px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.86rem' }}>
-                Set reconciliation parameters and upload the required source files.
+                Specify the target business date and settlement cycle for reconciliation.
+              </p>
+            </div>
+          </div>
+
+          <button 
+            className="btn btn-primary" 
+            onClick={handleProceedToUpload}
+            style={{ padding: '10px 24px', fontWeight: '700', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            Next: Upload Files <ChevronRight size={18} />
+          </button>
+        </div>
+
+        {/* Date & Cycle Selection Controls */}
+        <div style={{ background: '#F8FAFC', padding: '32px', borderRadius: '16px', border: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          <div>
+            <label style={{ marginBottom: '10px', fontWeight: '700', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
+              <Calendar size={18} color="var(--primary)" /> Business Date (T)
+            </label>
+            <input 
+              type="date" 
+              className="settings-input" 
+              value={businessDate}
+              onChange={(e) => setBusinessDate(e.target.value)}
+              style={{ width: '100%', fontSize: '1rem', padding: '12px 16px', background: 'white', borderRadius: '8px', border: '1px solid var(--border)' }}
+            />
+            <p style={{ margin: '8px 0 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+              Select the transaction settlement date.
+            </p>
+          </div>
+
+          <div>
+            <label style={{ marginBottom: '10px', fontWeight: '700', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
+              <RotateCcw size={18} color="var(--primary)" /> Settlement Cycle
+            </label>
+            <div style={{ position: 'relative' }}>
+              <select 
+                className="settings-input" 
+                value={settlementCycle} 
+                onChange={(e) => setSettlementCycle(e.target.value)}
+                style={{ width: '100%', appearance: 'none', paddingRight: '40px', fontSize: '1rem', padding: '12px 16px', fontWeight: '500', background: 'white', borderRadius: '8px', border: '1px solid var(--border)' }}
+              >
+                <option value="All Cycles (Daily Consolidated)">All Cycles (Daily Consolidated)</option>
+                <option value="Cycle 1 (00:00 - 08:00)">Cycle 1 (00:00 - 08:00)</option>
+                <option value="Cycle 2 (08:00 - 16:00)">Cycle 2 (08:00 - 16:00)</option>
+                <option value="Cycle 3 (16:00 - 24:00)">Cycle 3 (16:00 - 24:00)</option>
+                <option value="Cycle 4 (Night Settlement)">Cycle 4 (Night Settlement)</option>
+              </select>
+              <ChevronDown size={20} style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+            </div>
+            <p style={{ margin: '8px 0 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+              Select NPCI/Bank settlement window cycle.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ─── STEP 4: Upload Source Files ───
+  const renderStep4 = () => {
+    if (!productConfig) return null;
+
+    return (
+      <div className="animate-fade-in glass-card" style={{ padding: '28px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button 
+              className="btn btn-outline" 
+              onClick={() => setCurrentStep(3)}
+              style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <ArrowLeft size={16} /> Back to Date & Cycle
+            </button>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.25rem' }}>Step 4: Upload Source Files for {productConfig.name}</h2>
+              <p style={{ margin: '2px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.86rem' }}>
+                Date: <strong>{businessDate}</strong> • Cycle: <strong>{settlementCycle}</strong>
               </p>
             </div>
           </div>
@@ -409,45 +497,8 @@ export default function ManualReconView() {
           </button>
         </div>
 
-        {/* Date & Cycle Controls Box */}
-        <div style={{ background: '#F8FAFC', padding: '20px 24px', borderRadius: '12px', border: '1px solid var(--border)', marginBottom: '24px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-          <div>
-            <label style={{ marginBottom: '6px', fontWeight: '600', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Calendar size={15} color="var(--primary)" /> Business Date (T)
-            </label>
-            <input 
-              type="date" 
-              className="settings-input" 
-              value={businessDate}
-              onChange={(e) => setBusinessDate(e.target.value)}
-              style={{ width: '100%', fontSize: '0.95rem', background: 'white' }}
-            />
-          </div>
-
-          <div>
-            <label style={{ marginBottom: '6px', fontWeight: '600', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <RotateCcw size={15} color="var(--primary)" /> Settlement Cycle
-            </label>
-            <div style={{ position: 'relative' }}>
-              <select 
-                className="settings-input" 
-                value={settlementCycle} 
-                onChange={(e) => setSettlementCycle(e.target.value)}
-                style={{ width: '100%', appearance: 'none', paddingRight: '40px', fontSize: '0.95rem', fontWeight: '500', background: 'white' }}
-              >
-                <option value="All Cycles (Daily Consolidated)">All Cycles (Daily Consolidated)</option>
-                <option value="Cycle 1 (00:00 - 08:00)">Cycle 1 (00:00 - 08:00)</option>
-                <option value="Cycle 2 (08:00 - 16:00)">Cycle 2 (08:00 - 16:00)</option>
-                <option value="Cycle 3 (16:00 - 24:00)">Cycle 3 (16:00 - 24:00)</option>
-                <option value="Cycle 4 (Night Settlement)">Cycle 4 (Night Settlement)</option>
-              </select>
-              <ChevronDown size={18} style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
-            </div>
-          </div>
-        </div>
-
         {/* Upload Drop Zones Grid */}
-        <label style={{ display: 'block', marginBottom: '12px', fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+        <label style={{ display: 'block', marginBottom: '14px', fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
           Required Source Files ({productConfig.sources?.length || 0})
         </label>
         <div style={{ display: 'grid', gridTemplateColumns: productConfig.sources.length > 2 ? 'repeat(2, 1fr)' : '1fr', gap: '20px' }}>
@@ -537,8 +588,8 @@ export default function ManualReconView() {
     );
   };
 
-  // ─── STEP 4: Processing ───
-  const renderStep4 = () => (
+  // ─── STEP 5: Processing Engine ───
+  const renderStep5 = () => (
     <div className="animate-fade-in glass-card" style={{ padding: '32px' }}>
       <div style={{ textAlign: 'center', marginBottom: '32px' }}>
         <h2 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Processing Reconciliation Engine</h2>
@@ -578,8 +629,8 @@ export default function ManualReconView() {
     </div>
   );
 
-  // ─── STEP 5: Results ───
-  const renderStep5 = () => {
+  // ─── STEP 6: Results & Reports ───
+  const renderStep6 = () => {
     if (!reconResults) return null;
     const { summary } = reconResults;
 
@@ -757,6 +808,7 @@ export default function ManualReconView() {
       {currentStep === 3 && renderStep3()}
       {currentStep === 4 && renderStep4()}
       {currentStep === 5 && renderStep5()}
+      {currentStep === 6 && renderStep6()}
     </div>
   );
 }
