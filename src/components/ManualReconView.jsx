@@ -375,26 +375,26 @@ export default function ManualReconView() {
 
   // --- Render Top Stepper ---
   const renderStepper = () => (
-    <div className="glass-card" style={{ padding: '16px 28px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.88rem', fontWeight: '600' }}>
+    <div className="glass-card" style={{ padding: '14px 24px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.84rem', fontWeight: '600', flexWrap: 'wrap' }}>
         <span className={`badge ${currentStep === 1 ? 'badge-primary' : 'badge-neutral'}`}>1. Category</span>
-        <ChevronRight size={14} />
+        <ChevronRight size={14} color="var(--text-secondary)" />
         <span className={`badge ${currentStep === 2 ? 'badge-primary' : 'badge-neutral'}`}>2. Sub-Product</span>
-        <ChevronRight size={14} />
+        <ChevronRight size={14} color="var(--text-secondary)" />
         <span className={`badge ${currentStep === 3 ? 'badge-primary' : 'badge-neutral'}`}>3. Date & Cycle</span>
-        <ChevronRight size={14} />
+        <ChevronRight size={14} color="var(--text-secondary)" />
         <span className={`badge ${currentStep === 4 ? 'badge-primary' : 'badge-neutral'}`}>
           4. Files ({currentStep === 4 ? `${currentFileIndex + 1}/${totalFilePages}` : totalFilePages})
         </span>
-        <ChevronRight size={14} />
+        <ChevronRight size={14} color="var(--text-secondary)" />
         <span className={`badge ${currentStep === 5 ? 'badge-primary' : 'badge-neutral'}`}>5. Processing</span>
-        <ChevronRight size={14} />
+        <ChevronRight size={14} color="var(--text-secondary)" />
         <span className={`badge ${currentStep === 6 ? 'badge-primary' : 'badge-neutral'}`}>6. Results</span>
       </div>
 
       {productConfig && (
-        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-          Target: <strong>{productConfig.name}</strong> • <strong>{businessDate}</strong>
+        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', background: 'rgba(17, 157, 176, 0.06)', padding: '4px 12px', borderRadius: '16px', border: '1px solid rgba(17, 157, 176, 0.15)', whiteSpace: 'nowrap' }}>
+          Target: <strong style={{ color: 'var(--text-primary)' }}>{productConfig.name}</strong> • <strong>{businessDate}</strong>
         </div>
       )}
     </div>
@@ -843,14 +843,14 @@ export default function ManualReconView() {
 
     return (
       <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
-            <h2 style={{ margin: '0 0 4px 0' }}>Reconciliation Final Results</h2>
-            <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            <h2 style={{ margin: '0 0 4px 0', fontSize: '1.4rem' }}>Reconciliation Final Results</h2>
+            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
               {productConfig?.name} • Business Date: <strong>{businessDate}</strong> • Cycle: <strong>{settlementCycle}</strong>
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <button className="btn btn-outline" onClick={handleReset} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
               <RefreshCw size={16} /> Run Another Recon
             </button>
@@ -871,8 +871,8 @@ export default function ManualReconView() {
           </div>
         </div>
 
-        {/* Summary Metrics Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+        {/* Summary Metrics Cards (Responsive Auto-Fit Grid) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
           <div className="glass-card" style={{ padding: '20px', borderTop: '3px solid var(--text-secondary)' }}>
             <p style={{ margin: '0 0 8px 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Total Analyzed Records</p>
             <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{summary?.totalRecords?.toLocaleString() || 0}</div>
