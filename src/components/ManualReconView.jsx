@@ -343,41 +343,31 @@ export default function ManualReconView() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '16px' }}>
-          {availableProducts.map(prod => {
-            const statusStr = prod.reconStatus || 'Manual';
-            let badgeClass = 'badge-warning';
-            if (statusStr.includes('Automation') && !statusStr.includes('Manual')) badgeClass = 'badge-success';
-            else if (statusStr.includes('Both')) badgeClass = 'badge-primary';
-
-            return (
-              <div
-                key={prod.id}
-                className="glass-card"
-                onClick={() => handleSelectSubProduct(prod.id)}
-                style={{
-                  padding: '20px', cursor: 'pointer', position: 'relative',
-                  borderColor: selectedProductId === prod.id ? 'var(--primary)' : 'var(--border)',
-                  backgroundColor: selectedProductId === prod.id ? 'rgba(17, 157, 176, 0.08)' : 'white',
-                  borderRadius: '12px', transition: 'all 0.2s ease',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 18px rgba(0,0,0,0.08)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'none';
-                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.03)';
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <span className={`badge ${badgeClass}`} style={{ fontSize: '0.72rem' }}>{statusStr}</span>
-                  <ChevronRight size={16} style={{ color: 'var(--text-secondary)' }} />
-                </div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-primary)' }}>{prod.name}</h3>
-              </div>
-            );
-          })}
+          {availableProducts.map(prod => (
+            <div
+              key={prod.id}
+              className="glass-card"
+              onClick={() => handleSelectSubProduct(prod.id)}
+              style={{
+                padding: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                borderColor: selectedProductId === prod.id ? 'var(--primary)' : 'var(--border)',
+                backgroundColor: selectedProductId === prod.id ? 'rgba(17, 157, 176, 0.08)' : 'white',
+                borderRadius: '12px', transition: 'all 0.2s ease',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 18px rgba(0,0,0,0.08)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.03)';
+              }}
+            >
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-primary)' }}>{prod.name}</h3>
+              <ChevronRight size={18} style={{ color: 'var(--text-secondary)' }} />
+            </div>
+          ))}
         </div>
       </div>
     );
