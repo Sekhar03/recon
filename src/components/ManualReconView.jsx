@@ -669,40 +669,24 @@ export default function ManualReconView() {
                 </div>
 
                 <button 
-                  className="btn btn-primary"
+                  className="btn btn-outline"
                   onClick={() => triggerAutoFetchAnimation(currentSrc.key, currentSrc.label)}
-                  disabled={status === 'fetching'}
-                  style={{ padding: '10px 20px', display: 'flex', gap: '8px', alignItems: 'center', fontWeight: '700' }}
+                  style={{ padding: '8px 16px', display: 'flex', gap: '6px', alignItems: 'center', fontSize: '0.88rem' }}
                 >
-                  {status === 'fetching' ? <RefreshCw className="animate-spin" size={18} /> : <Zap size={18} />} 
-                  {status === 'completed' ? '⚡ Re-Fetch from Cloud' : '⚡ Start Auto-Fetch Stream'}
+                  <RefreshCw size={15} /> Re-Fetch Data
                 </button>
               </div>
 
-              {/* High-Tech Auto-Fetch Progress & Terminal Console */}
-              {(status === 'fetching' || status === 'completed') && (
-                <div className="animate-fade-in" style={{ marginTop: '20px' }}>
-                  {/* Progress Bar */}
-                  <div style={{ marginBottom: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '6px', fontWeight: '600' }}>
-                      <span style={{ color: status === 'completed' ? 'var(--success)' : 'var(--primary)' }}>
-                        {status === 'completed' ? '✔ Stream Complete (100%)' : `Streaming Cloud Logs (${progress}%)...`}
-                      </span>
-                      <span>{progress}%</span>
-                    </div>
-                    <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--border)', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div style={{ width: `${progress}%`, height: '100%', backgroundColor: status === 'completed' ? 'var(--success)' : 'var(--primary)', transition: 'width 0.3s ease' }} />
-                    </div>
+              {/* Clean Status Badge without dark terminal console */}
+              {status === 'completed' && (
+                <div className="animate-fade-in" style={{ marginTop: '14px', background: 'rgba(16, 185, 129, 0.08)', padding: '12px 18px', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <CheckCircle2 size={20} color="var(--success)" />
+                    <span style={{ fontSize: '0.9rem', color: 'var(--success)', fontWeight: '600' }}>
+                      Successfully auto-fetched 18,450 transaction records from Cloud Storage!
+                    </span>
                   </div>
-
-                  {/* Live Stream Terminal Logs */}
-                  <div style={{ backgroundColor: '#1b2a3e', borderRadius: '10px', padding: '16px 20px', fontFamily: 'monospace', color: '#e2e8f0', fontSize: '0.85rem', maxHeight: '180px', overflowY: 'auto' }}>
-                    {logs.map((logMsg, i) => (
-                      <div key={i} style={{ marginBottom: '4px', color: logMsg.includes('✔') ? '#34d399' : '#94a3b8' }}>
-                        {logMsg}
-                      </div>
-                    ))}
-                  </div>
+                  <span className="badge badge-success">File Ready</span>
                 </div>
               )}
             </div>
@@ -820,41 +804,34 @@ export default function ManualReconView() {
 
   // ─── STEP 5: Processing Engine ───
   const renderStep5 = () => (
-    <div className="animate-fade-in glass-card" style={{ padding: '32px' }}>
-      <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-        <h2 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Processing Reconciliation Engine</h2>
-        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
-          Product: <strong>{productConfig?.name}</strong> • Business Date: <strong>{businessDate}</strong> • Cycle: <strong>{settlementCycle}</strong>
-        </p>
-      </div>
-
-      <div style={{ backgroundColor: '#1b2a3e', borderRadius: '12px', padding: '24px', fontFamily: 'monospace', color: '#e2e8f0', height: '350px', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '12px' }}>
-          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
-          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
-          <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#10b981' }} />
-          <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginLeft: '8px' }}>engine_console.log</span>
+    <div className="animate-fade-in glass-card" style={{ padding: '40px', textAlign: 'center' }}>
+      <div style={{ maxWidth: '600px', margin: '0 auto' }}>
+        <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(17, 157, 176, 0.1)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto' }}>
+          <RefreshCw className="animate-spin" size={32} />
         </div>
 
-        {processingLogs.map((log, idx) => {
-          let logColor = '#cbd5e1';
-          if (log.status === 'completed') logColor = '#34d399';
-          if (log.status === 'error') logColor = '#f87171';
-          if (log.status === 'processing') logColor = '#60a5fa';
+        <h2 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Processing Reconciliation Engine</h2>
+        <p style={{ color: 'var(--text-secondary)', margin: '0 0 28px 0', fontSize: '0.92rem' }}>
+          Product: <strong>{productConfig?.name}</strong> • Date: <strong>{businessDate}</strong> • Cycle: <strong>{settlementCycle}</strong>
+        </p>
 
-          return (
-            <div key={idx} style={{ marginBottom: '8px', fontSize: '0.85rem', color: logColor, display: 'flex', gap: '12px' }}>
-              <span style={{ color: 'rgba(255,255,255,0.4)' }}>[{log.time}]</span>
-              <span>{log.message}</span>
+        {/* Clean Step Status List */}
+        <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '20px', border: '1px solid var(--border)', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {processingLogs.map((log, idx) => (
+            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem' }}>
+              {log.status === 'completed' ? (
+                <CheckCircle2 size={18} color="var(--success)" />
+              ) : log.status === 'error' ? (
+                <X size={18} color="var(--danger)" />
+              ) : (
+                <RefreshCw className="animate-spin" size={16} color="var(--primary)" />
+              )}
+              <span style={{ color: log.status === 'completed' ? 'var(--text-primary)' : 'var(--text-secondary)', fontWeight: log.status === 'completed' ? '600' : '400' }}>
+                {log.message}
+              </span>
             </div>
-          );
-        })}
-        {processingStatus === 'processing' && (
-          <div style={{ color: '#60a5fa', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <RefreshCw className="animate-spin" size={14} /> Running merge, column normalization, and comparison logic...
-          </div>
-        )}
-        <div ref={logsEndRef} />
+          ))}
+        </div>
       </div>
     </div>
   );
