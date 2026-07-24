@@ -677,7 +677,45 @@ export default function ManualReconView() {
                 </button>
               </div>
 
-              {/* Clean Status Badge without dark terminal console */}
+              {/* Sleek Data Fetching Loading Animation */}
+              {status === 'fetching' && (
+                <div className="animate-fade-in" style={{ marginTop: '16px', background: 'rgba(17, 157, 176, 0.06)', padding: '20px', borderRadius: '12px', border: '1px solid rgba(17, 157, 176, 0.2)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'rgba(17, 157, 176, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <RefreshCw className="animate-spin" size={20} color="var(--primary)" />
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)', fontWeight: '600' }}>
+                          Fetching transaction data from Cloud...
+                        </h4>
+                        <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          Connecting to {channelName} • Date: {businessDate}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="badge badge-primary" style={{ fontSize: '0.82rem', padding: '4px 12px' }}>
+                      {progress}% Loaded
+                    </span>
+                  </div>
+
+                  {/* Animated Smooth Progress Bar */}
+                  <div style={{ width: '100%', height: '8px', backgroundColor: 'rgba(17, 157, 176, 0.15)', borderRadius: '4px', overflow: 'hidden' }}>
+                    <div 
+                      style={{ 
+                        width: `${progress}%`, 
+                        height: '100%', 
+                        backgroundColor: 'var(--primary)', 
+                        borderRadius: '4px', 
+                        transition: 'width 0.3s ease-in-out',
+                        boxShadow: '0 0 10px rgba(17, 157, 176, 0.5)'
+                      }} 
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Clean Status Badge when completed */}
               {status === 'completed' && (
                 <div className="animate-fade-in" style={{ marginTop: '14px', background: 'rgba(16, 185, 129, 0.08)', padding: '12px 18px', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
