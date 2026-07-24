@@ -15,6 +15,11 @@ export const CATEGORIES = [
   { id: 'dmt', name: 'DMT', icon: '💸', color: '#ec4899', desc: 'Direct Money Transfer' },
   { id: 'pos', name: 'POS / Cashpoint', icon: '🏪', color: '#14b8a6', desc: 'Point of Sale' },
   { id: 'cashout', name: 'RBL CASHOUT/PAYOUT', icon: '🏦', color: '#f97316', desc: 'Wallet to Bank Cashout' },
+  { id: 'prepaidcard', name: 'PREPAID CARD', icon: '💳', color: '#6366f1', desc: 'Prepaid Card Reconciliation' },
+  { id: 'upiacquiring', name: 'UPI ACQUIRING', icon: '📱', color: '#0284c7', desc: 'UPI Merchant Acquiring Settlement' },
+  { id: 'walletrecon', name: 'WALLET RECON', icon: '👛', color: '#84cc16', desc: 'System Wallet & Nodal Reconciliation' },
+  { id: 'commissionrecon', name: 'COMMISSION RECON', icon: '💰', color: '#d97706', desc: 'Commission Calculation & Discrepancy' },
+  { id: 'bobproject', name: 'BOB PROJECT', icon: '🏛️', color: '#2563eb', desc: 'Bank of Baroda Project Recon' },
 ];
 
 // ─── SUB-PRODUCT CONFIGURATIONS ───
@@ -1501,7 +1506,7 @@ export const PRODUCTS = [
   {
     id: 'prepaidcard',
     name: 'PREPAID CARD',
-    category: 'cashout',
+    category: 'prepaidcard',
     apiEndpoint: '/prepaidcardrecon',
     bucket: 'prod-isurecon',
     folder: 'prepaidcard',
@@ -1553,7 +1558,7 @@ export const PRODUCTS = [
   {
     id: 'upiacquiring',
     name: 'UPI ACQUIRING',
-    category: 'upi',
+    category: 'upiacquiring',
     apiEndpoint: '/upiacquiringrecon',
     bucket: 'prod-isurecon',
     folder: 'upiacquiring',
@@ -1635,7 +1640,7 @@ export const PRODUCTS = [
   {
     id: 'walletrecon',
     name: 'Wallet Recon',
-    category: 'cashout',
+    category: 'walletrecon',
     apiEndpoint: '/walletrecon',
     bucket: 'prod-isurecon',
     folder: 'walletrecon',
@@ -1676,7 +1681,7 @@ export const PRODUCTS = [
   {
     id: 'commissionrecon',
     name: 'COMMISSION RECON',
-    category: 'matm',
+    category: 'commissionrecon',
     apiEndpoint: '/generalcommissionrecon',
     bucket: 'prod-isurecon',
     folder: 'commissionrecon',
@@ -1712,7 +1717,7 @@ export const PRODUCTS = [
   {
     id: 'bobproject',
     name: 'BOB Project',
-    category: 'aeps',
+    category: 'bobproject',
     apiEndpoint: '/bobprojectrecon',
     bucket: 'prod-isurecon',
     folder: 'bobproject',
