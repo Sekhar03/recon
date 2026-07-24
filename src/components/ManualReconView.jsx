@@ -330,47 +330,93 @@ export default function ManualReconView() {
 
     return (
       <div className="animate-fade-in glass-card" style={{ padding: '32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
-          <button 
-            className="btn btn-outline" 
-            onClick={() => setCurrentStep(1)}
-            style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <ArrowLeft size={16} /> Back to Categories
-          </button>
-          <div>
-            <h2 style={{ margin: 0, fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>{activeCategory?.icon}</span> {activeCategory?.name} — Sub-Product & Cycle Setup
-            </h2>
-            <p style={{ margin: '2px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
-              Configure the specific sub-product, settlement cycle, and target business date.
-            </p>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
-          {/* Sub-Product Select */}
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>
-              Sub-Product Variant ({availableProducts.length} Available)
-            </label>
-            <div style={{ position: 'relative' }}>
-              <select 
-                className="settings-input" 
-                value={selectedProductId} 
-                onChange={(e) => setSelectedProductId(e.target.value)}
-                style={{ width: '100%', appearance: 'none', paddingRight: '40px', fontSize: '0.95rem', fontWeight: '500' }}
-              >
-                {availableProducts.map(prod => (
-                  <option key={prod.id} value={prod.id}>
-                    {prod.name} {prod.reconStatus ? `[${prod.reconStatus}]` : ''}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={18} style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+        {/* Header Navigation */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button 
+              className="btn btn-outline" 
+              onClick={() => setCurrentStep(1)}
+              style={{ padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <ArrowLeft size={16} /> Back to Categories
+            </button>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>{activeCategory?.icon}</span> {activeCategory?.name} — Select Sub-Product & Parameters
+              </h2>
+              <p style={{ margin: '2px 0 0 0', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                Select a sub-product variant card, settlement cycle, and target business date.
+              </p>
             </div>
           </div>
 
+          <button 
+            className="btn btn-primary" 
+            onClick={handleProceedToUpload}
+            disabled={!selectedProductId || !businessDate}
+            style={{ padding: '10px 24px', fontWeight: '700', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            Proceed to File Upload <ChevronRight size={18} />
+          </button>
+        </div>
+
+        {/* ─── 1. Sub-Products Card Grid (Box Format like Main Products) ─── */}
+        <div style={{ marginBottom: '32px' }}>
+          <label style={{ display: 'block', marginBottom: '12px', fontWeight: '700', fontSize: '1rem', color: 'var(--text-primary)' }}>
+            Select Sub-Product Variant ({availableProducts.length} Available)
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+            {availableProducts.map(prod => {
+              const isSelected = selectedProductId === prod.id;
+              const statusStr = prod.reconStatus || 'Manual';
+              let badgeClass = 'badge-warning';
+              if (statusStr.includes('Automation') && !statusStr.includes('Manual')) badgeClass = 'badge-success';
+              else if (statusStr.includes('Both')) badgeClass = 'badge-primary';
+
+              return (
+                <div
+                  key={prod.id}
+                  className="glass-card"
+                  onClick={() => setSelectedProductId(prod.id)}
+                  style={{
+                    padding: '20px', cursor: 'pointer', position: 'relative',
+                    borderColor: isSelected ? 'var(--primary)' : 'var(--border)',
+                    backgroundColor: isSelected ? 'rgba(17, 157, 176, 0.08)' : 'white',
+                    transform: isSelected ? 'translateY(-2px)' : 'none',
+                    boxShadow: isSelected ? '0 6px 20px rgba(17,157,176,0.14)' : 'none',
+                    transition: 'all 0.2s ease',
+                    borderRadius: '12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <span className={`badge ${badgeClass}`} style={{ fontSize: '0.75rem' }}>{statusStr}</span>
+                    {isSelected && (
+                      <div style={{ backgroundColor: 'var(--primary)', color: 'white', borderRadius: '50%', padding: '3px' }}>
+                        <Check size={14} />
+                      </div>
+                    )}
+                  </div>
+
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: '1.08rem', color: 'var(--text-primary)' }}>{prod.name}</h3>
+                  <p style={{ margin: '0 0 12px 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                    📄 {prod.sources?.length || 0} Required Source Files
+                  </p>
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {prod.sources?.map((s, i) => (
+                      <span key={i} style={{ fontSize: '0.72rem', background: '#F1F5F9', color: '#475569', padding: '2px 6px', borderRadius: '4px' }}>
+                        {s.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ─── 2. Cycle & Business Date Selection Controls ─── */}
+        <div style={{ background: '#F8FAFC', padding: '24px', borderRadius: '12px', border: '1px solid var(--border)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
           {/* Settlement Cycle Select */}
           <div>
             <label style={{ marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -381,7 +427,7 @@ export default function ManualReconView() {
                 className="settings-input" 
                 value={settlementCycle} 
                 onChange={(e) => setSettlementCycle(e.target.value)}
-                style={{ width: '100%', appearance: 'none', paddingRight: '40px', fontSize: '0.95rem', fontWeight: '500' }}
+                style={{ width: '100%', appearance: 'none', paddingRight: '40px', fontSize: '0.95rem', fontWeight: '500', background: 'white' }}
               >
                 <option value="All Cycles (Daily Consolidated)">All Cycles (Daily Consolidated)</option>
                 <option value="Cycle 1 (00:00 - 08:00)">Cycle 1 (00:00 - 08:00)</option>
@@ -403,43 +449,11 @@ export default function ManualReconView() {
               className="settings-input" 
               value={businessDate}
               onChange={(e) => setBusinessDate(e.target.value)}
-              style={{ width: '100%', fontSize: '0.95rem' }}
+              style={{ width: '100%', fontSize: '0.95rem', background: 'white' }}
             />
           </div>
         </div>
 
-        {/* Selected Product Specifications Box */}
-        {productConfig && (
-          <div style={{ marginTop: '28px', background: 'rgba(17, 157, 176, 0.05)', padding: '20px 24px', borderRadius: '12px', border: '1px solid rgba(17, 157, 176, 0.2)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Configuration Specification
-                </span>
-                <h3 style={{ margin: '4px 0 6px 0', fontSize: '1.2rem', color: 'var(--text-primary)' }}>{productConfig.name}</h3>
-                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                  Reconciliation Status: <strong>{productConfig.reconStatus || 'Manual'}</strong> • Target Date: <strong>{businessDate}</strong> • Cycle: <strong>{settlementCycle}</strong>
-                </p>
-                <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {productConfig.sources?.map((src, i) => (
-                    <span key={i} style={{ fontSize: '0.8rem', background: 'white', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                      📄 {src.label} {src.required ? <strong style={{ color: 'var(--danger)' }}>*</strong> : '(Optional)'}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <button 
-                className="btn btn-primary" 
-                onClick={handleProceedToUpload}
-                disabled={!selectedProductId || !businessDate}
-                style={{ padding: '12px 28px', fontWeight: '700', fontSize: '0.95rem', whiteSpace: 'nowrap' }}
-              >
-                Proceed to File Upload <ChevronRight size={18} />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     );
   };
