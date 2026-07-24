@@ -309,7 +309,9 @@ export default function ManualReconView() {
                 >
                   <option value="">Select a product...</option>
                   {availableProducts.map(prod => (
-                    <option key={prod.id} value={prod.id}>{prod.name}</option>
+                    <option key={prod.id} value={prod.id}>
+                      {prod.name} {prod.reconStatus ? `[${prod.reconStatus}]` : ''}
+                    </option>
                   ))}
                 </select>
                 <ChevronDown size={18} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
