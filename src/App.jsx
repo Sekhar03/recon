@@ -4,10 +4,12 @@ import {
   User, 
   LogOut, 
   X,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Layers
 } from 'lucide-react';
 import FullPipelineView from './components/FullPipelineView';
 import HistoryLog from './components/History';
+import ManualReconView from './components/ManualReconView';
 import Login from './components/Login';
 
 function App() {
@@ -28,6 +30,8 @@ function App() {
     switch (activeTab) {
       case 'recon-hub':
         return <FullPipelineView />;
+      case 'product-recon':
+        return <ManualReconView />;
       case 'job-archives':
         return <HistoryLog />;
       default:
@@ -63,6 +67,10 @@ function App() {
                   <Zap size={17} />
                   <span>Reconciliation Hub</span>
                 </li>
+                <li className={`nav-item ${activeTab === 'product-recon' ? 'active' : ''}`} onClick={() => { setActiveTab('product-recon'); setMobileMenuOpen(false); }}>
+                  <Layers size={17} />
+                  <span>Product Recon</span>
+                </li>
                 <li className={`nav-item ${activeTab === 'job-archives' ? 'active' : ''}`} onClick={() => { setActiveTab('job-archives'); setMobileMenuOpen(false); }}>
                   <HistoryIcon size={17} />
                   <span>Job Archives</span>
@@ -95,11 +103,14 @@ function App() {
           <div>
             <h1 style={{ fontSize: '24px', marginBottom: '4px' }}>
               {activeTab === 'recon-hub' && 'Reconciliation Hub Pipeline Execution'}
+              {activeTab === 'product-recon' && 'Product Reconciliation Engine'}
               {activeTab === 'job-archives' && 'Job Archives & Historical Reconciliation Logs'}
             </h1>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
               {activeTab === 'recon-hub' 
                 ? 'Product Selection → NPCI Upload → Automated Report Fetching → Matched & Mismatched Output Reports.'
+                : activeTab === 'product-recon'
+                ? 'Select Product Category → Upload Source Files → Automated Merge & Compare → Download Match/Mismatch Reports.'
                 : 'Inspect past reconciliation runs and re-download generated output files.'}
             </p>
           </div>
