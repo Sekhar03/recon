@@ -595,7 +595,7 @@ export default function ManualReconView() {
             <button className="btn btn-outline" onClick={handleReset} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <RefreshCw size={16} /> Run Another
             </button>
-            <button className="btn btn-primary" onClick={() => exportReconResults(reconResults.matchedData, reconResults.mismatchedData, productConfig)} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button className="btn btn-primary" onClick={() => exportReconResults(reconResults.matchedData, reconResults.mismatchedData, productConfig, reconResults.allData)} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <Download size={16} /> Export Final Report
             </button>
           </div>
