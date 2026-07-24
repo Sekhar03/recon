@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getCategories, getProductsByCategory, getProductById, getAllProducts } from '../utils/productConfigs';
+import { getCategories, getProductsByCategory, getProductById } from '../utils/productConfigs';
 import { runRecon, exportToExcel, exportReconResults } from '../utils/manualReconEngine';
 import {
   Play, CheckCircle, Clock, Upload, Download, RefreshCw, AlertTriangle,
   ChevronRight, FileText, Check, Search, X, ArrowLeft, Layers, Database,
-  Filter, ChevronDown, Tag
+  Filter, ChevronDown
 } from 'lucide-react';
 
 const steps = [
@@ -47,10 +47,8 @@ export default function ManualReconView() {
     try {
       const cats = getCategories();
       setCategories(cats || []);
-      const allProds = getAllProducts();
-      setAvailableProducts(allProds || []);
     } catch (e) {
-      console.warn("Failed to get categories/products", e);
+      console.warn("Failed to get categories", e);
     }
   }, []);
 
@@ -60,10 +58,9 @@ export default function ManualReconView() {
         const prods = getProductsByCategory(selectedCategoryId);
         setAvailableProducts(prods || []);
       } catch (e) {
-        console.warn("Failed to get products for category", e);
+        console.warn("Failed to get products", e);
       }
-    } else {
-      setAvailableProducts(getAllProducts());
+      setSelectedProductId('');
     }
   }, [selectedCategoryId]);
 
@@ -72,9 +69,6 @@ export default function ManualReconView() {
       try {
         const config = getProductById(selectedProductId);
         setProductConfig(config);
-        if (config && config.category && !selectedCategoryId) {
-          setSelectedCategoryId(config.category);
-        }
       } catch (e) {
         console.warn("Failed to get product config", e);
       }
@@ -262,188 +256,92 @@ export default function ManualReconView() {
   );
 
   const renderStep1 = () => (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-      
-      {/* ─── 1. Primary Product & Date Configuration Box (ALWAYS VISIBLE) ─── */}
-      <div className="glass-card" style={{ padding: '28px', borderLeft: '4px solid var(--primary)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '14px' }}>
-          <div>
-            <h3 style={{ margin: '0 0 4px 0', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Layers className="text-primary" size={22} /> Product & Reconciliation Date Configuration
-            </h3>
-            <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              Select any of the 20+ supported financial products and business date to start reconciliation.
-            </p>
-          </div>
-          {selectedCategoryId && (
-            <button 
-              className="btn btn-outline" 
-              onClick={() => setSelectedCategoryId('')}
-              style={{ fontSize: '0.85rem', padding: '4px 12px' }}
-            >
-              Show All Categories
-            </button>
-          )}
-        </div>
+    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+      <div>
+        <h2 style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Layers className="text-primary" size={24} /> Select Category
+        </h2>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>Choose the asset class or product category you want to reconcile.</p>
         
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>
-              Select Reconciliation Product ({availableProducts.length} Available)
-            </label>
-            <div style={{ position: 'relative' }}>
-              <select 
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+          {categories.map(cat => (
+            <div 
+              key={cat.id} 
+              className="glass-card"
+              onClick={() => setSelectedCategoryId(cat.id)}
+              style={{
+                padding: '24px', cursor: 'pointer', position: 'relative', overflow: 'hidden',
+                borderColor: selectedCategoryId === cat.id ? 'var(--primary)' : 'var(--border)',
+                backgroundColor: selectedCategoryId === cat.id ? 'rgba(17, 157, 176, 0.05)' : '',
+                transform: selectedCategoryId === cat.id ? 'translateY(-2px)' : 'none',
+                boxShadow: selectedCategoryId === cat.id ? '0 8px 24px rgba(0,0,0,0.05)' : 'none',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>{cat.icon || '📦'}</div>
+                {selectedCategoryId === cat.id && (
+                  <div style={{ backgroundColor: 'var(--primary)', color: 'white', borderRadius: '50%', padding: '4px' }}>
+                    <Check size={16} />
+                  </div>
+                )}
+              </div>
+              <h3 style={{ margin: '0 0 8px 0', fontSize: '1.1rem' }}>{cat.name}</h3>
+              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.4' }}>{cat.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {selectedCategoryId && (
+        <div className="animate-fade-in glass-card" style={{ padding: '24px' }}>
+          <h3 style={{ marginBottom: '20px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>Configuration</h3>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Sub-Product</label>
+              <div style={{ position: 'relative' }}>
+                <select 
+                  className="settings-input" 
+                  value={selectedProductId} 
+                  onChange={(e) => setSelectedProductId(e.target.value)}
+                  style={{ width: '100%', appearance: 'none', paddingRight: '40px' }}
+                >
+                  <option value="">Select a product...</option>
+                  {availableProducts.map(prod => (
+                    <option key={prod.id} value={prod.id}>
+                      {prod.name} {prod.reconStatus ? `[${prod.reconStatus}]` : ''}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={18} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+              </div>
+            </div>
+            
+            <div>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>Business Date</label>
+              <input 
+                type="date" 
                 className="settings-input" 
-                value={selectedProductId} 
-                onChange={(e) => setSelectedProductId(e.target.value)}
-                style={{ width: '100%', appearance: 'none', paddingRight: '40px', fontSize: '0.95rem', fontWeight: '500' }}
-              >
-                <option value="">-- Choose a Product ({availableProducts.length} total) --</option>
-                {availableProducts.map(prod => (
-                  <option key={prod.id} value={prod.id}>
-                    {prod.name} — {prod.reconStatus ? `[Status: ${prod.reconStatus}]` : ''} ({prod.sources?.length || 0} files required)
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={18} style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }} />
+                value={businessDate}
+                onChange={(e) => setBusinessDate(e.target.value)}
+                style={{ width: '100%' }}
+              />
             </div>
           </div>
           
-          <div>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', fontSize: '0.9rem' }}>Business Date (T)</label>
-            <input 
-              type="date" 
-              className="settings-input" 
-              value={businessDate}
-              onChange={(e) => setBusinessDate(e.target.value)}
-              style={{ width: '100%', fontSize: '0.95rem' }}
-            />
-          </div>
-        </div>
-
-        {/* Selected Product Specs Preview */}
-        {productConfig && (
-          <div style={{ marginTop: '20px', background: 'rgba(17, 157, 176, 0.06)', padding: '16px 20px', borderRadius: '12px', border: '1px solid rgba(17, 157, 176, 0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <span style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Selected Product Spec</span>
-              <h4 style={{ margin: '4px 0 2px 0', fontSize: '1.05rem', color: 'var(--text-primary)' }}>{productConfig.name}</h4>
-              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                Required Input Files ({productConfig.sources?.length}): <strong>{productConfig.sources?.map(s => s.label).join(' • ')}</strong>
-              </p>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '32px' }}>
             <button 
               className="btn btn-primary" 
               onClick={handleProceedToStep2}
-              style={{ padding: '10px 24px', fontWeight: '700', whiteSpace: 'nowrap' }}
+              disabled={!selectedProductId || !businessDate}
+              style={{ padding: '10px 24px' }}
             >
-              Proceed to File Upload <ChevronRight size={18} />
+              Proceed to Upload <ChevronRight size={18} />
             </button>
           </div>
-        )}
-      </div>
-
-      {/* ─── 2. Filter by Category Cards ─── */}
-      <div>
-        <h3 style={{ marginBottom: '12px', fontSize: '1.1rem' }}>Filter by Product Category</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
-          {categories.map(cat => {
-            const isSelected = selectedCategoryId === cat.id;
-            return (
-              <div 
-                key={cat.id} 
-                className="glass-card"
-                onClick={() => setSelectedCategoryId(isSelected ? '' : cat.id)}
-                style={{
-                  padding: '18px 20px', cursor: 'pointer', position: 'relative',
-                  borderColor: isSelected ? 'var(--primary)' : 'var(--border)',
-                  backgroundColor: isSelected ? 'rgba(17, 157, 176, 0.08)' : 'white',
-                  transform: isSelected ? 'translateY(-2px)' : 'none',
-                  boxShadow: isSelected ? '0 4px 16px rgba(17,157,176,0.12)' : 'none',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '1.8rem' }}>{cat.icon || '📦'}</span>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: '1rem' }}>{cat.name}</h4>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{cat.desc}</span>
-                    </div>
-                  </div>
-                  {isSelected && (
-                    <div style={{ backgroundColor: 'var(--primary)', color: 'white', borderRadius: '50%', padding: '3px' }}>
-                      <Check size={14} />
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
         </div>
-      </div>
-
-      {/* ─── 3. Full 20 Products Status & Selection Master Table ─── */}
-      <div className="glass-card" style={{ padding: '24px' }}>
-        <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Tag size={18} color="var(--primary)" /> Complete Financial Products Directory ({availableProducts.length} Products)
-        </h3>
-        <div style={{ overflowX: 'auto' }}>
-          <table className="data-table" style={{ width: '100%', fontSize: '0.88rem' }}>
-            <thead>
-              <tr style={{ background: '#F8FAFC' }}>
-                <th style={{ padding: '12px 16px' }}>#</th>
-                <th style={{ padding: '12px 16px' }}>Product Name</th>
-                <th style={{ padding: '12px 16px' }}>Category</th>
-                <th style={{ padding: '12px 16px' }}>Recon Status</th>
-                <th style={{ padding: '12px 16px' }}>Required Source Files</th>
-                <th style={{ padding: '12px 16px', textAlign: 'center' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {availableProducts.map((prod, idx) => {
-                const isSelected = selectedProductId === prod.id;
-                const statusStr = prod.reconStatus || 'Manual';
-                let badgeClass = 'badge-warning';
-                if (statusStr.includes('Automation') && !statusStr.includes('Manual')) badgeClass = 'badge-success';
-                else if (statusStr.includes('Both')) badgeClass = 'badge-primary';
-
-                return (
-                  <tr 
-                    key={prod.id} 
-                    style={{ background: isSelected ? 'rgba(17,157,176,0.06)' : 'transparent', cursor: 'pointer' }}
-                    onClick={() => setSelectedProductId(prod.id)}
-                  >
-                    <td style={{ padding: '12px 16px', fontWeight: '600', color: 'var(--text-secondary)' }}>{idx + 1}</td>
-                    <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                      {prod.name} {isSelected && <span style={{ color: 'var(--primary)', marginLeft: '6px' }}>✓ Selected</span>}
-                    </td>
-                    <td style={{ padding: '12px 16px', textTransform: 'uppercase', fontSize: '0.8rem', fontWeight: '600' }}>{prod.category}</td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span className={`badge ${badgeClass}`}>{statusStr}</span>
-                    </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
-                      {prod.sources?.map(s => s.label).join(', ')}
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                      <button 
-                        className={`btn ${isSelected ? 'btn-primary' : 'btn-outline'}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedProductId(prod.id);
-                        }}
-                        style={{ padding: '4px 14px', fontSize: '0.8rem', fontWeight: '600' }}
-                      >
-                        {isSelected ? 'Selected' : 'Select'}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
+      )}
     </div>
   );
 
