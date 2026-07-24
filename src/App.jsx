@@ -13,13 +13,13 @@ import ManualReconView from './components/ManualReconView';
 import Login from './components/Login';
 
 function App() {
-  const [activeTab, setActiveTab] = useState('recon-hub');
+  const [activeTab, setActiveTab] = useState('product-recon');
   const [user, setUser] = useState({ name: 'Finance Admin', role: 'Reconciliation Lead' });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const logout = () => {
     setUser(null);
-    setActiveTab('recon-hub');
+    setActiveTab('product-recon');
   };
 
   if (!user) {
@@ -28,14 +28,12 @@ function App() {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'recon-hub':
-        return <FullPipelineView />;
       case 'product-recon':
         return <ManualReconView />;
       case 'job-archives':
         return <HistoryLog />;
       default:
-        return <FullPipelineView />;
+        return <ManualReconView />;
     }
   };
 
@@ -57,16 +55,11 @@ function App() {
 
         <nav style={{ flex: 1, overflowY: 'auto' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-            {/* Primary Modules - Only 2 Active Modules */}
             <div>
               <p style={{ fontSize: '10px', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', fontWeight: '700', letterSpacing: '1px', margin: '0 0 8px 12px' }}>
                 Navigation
               </p>
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <li className={`nav-item ${activeTab === 'recon-hub' ? 'active' : ''}`} onClick={() => { setActiveTab('recon-hub'); setMobileMenuOpen(false); }}>
-                  <Zap size={17} />
-                  <span>Reconciliation Hub</span>
-                </li>
                 <li className={`nav-item ${activeTab === 'product-recon' ? 'active' : ''}`} onClick={() => { setActiveTab('product-recon'); setMobileMenuOpen(false); }}>
                   <Layers size={17} />
                   <span>Product Recon</span>
