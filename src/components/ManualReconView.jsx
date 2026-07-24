@@ -154,6 +154,19 @@ export default function ManualReconView() {
     }
   };
 
+  // --- Auto-start Cloud Fetch animation as soon as an auto-fetchable file page renders ---
+  useEffect(() => {
+    if (currentStep === 4 && productConfig && productConfig.sources && productConfig.sources[currentFileIndex]) {
+      const currentSrc = productConfig.sources[currentFileIndex];
+      if (isAutoFetchableSource(currentSrc.key, currentSrc.label)) {
+        const currentStatus = fetchStatus[currentSrc.key];
+        if (!currentStatus || currentStatus === 'idle') {
+          triggerAutoFetchAnimation(currentSrc.key, currentSrc.label);
+        }
+      }
+    }
+  }, [currentStep, currentFileIndex, productConfig]);
+
   // --- Auto-Fetch Animation Trigger for a single source file ---
   const triggerAutoFetchAnimation = (srcKey, srcLabel) => {
     setFetchStatus(prev => ({ ...prev, [srcKey]: 'fetching' }));
