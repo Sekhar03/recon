@@ -1,0 +1,8 @@
+{
+  "name": "Remix iServeU Reconciliation Platform",
+  "description": "Automated transaction reconciliation suite for 14 categories and 42 sub-products with dual Excel output and job archives.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
